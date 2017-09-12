@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(ORB_SLAM2)
+project(hum_base_slam)
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)

@@ -5,6 +5,10 @@ Examples/ROS/ORB_SLAM2/build
 Examples/ROS/ORB_SLAM2/Mono
 Examples/ROS/ORB_SLAM2/RGBD
 Examples/ROS/ORB_SLAM2/Stereo
+Examples/ROS/hum_base_slam/build
+Examples/ROS/hum_base_slam/Mono
+Examples/ROS/hum_base_slam/RGBD
+Examples/ROS/hum_base_slam/Stereo
 .cproject
 .project
 Examples/Monocular/mono_euroc

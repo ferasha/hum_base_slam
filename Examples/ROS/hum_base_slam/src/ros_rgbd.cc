@@ -44,6 +44,11 @@ public:
     void GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const sensor_msgs::ImageConstPtr& msgD);
 
     ORB_SLAM2::System* mpSLAM;
+
+    int nImages;
+
+    std::chrono::steady_clock::time_point start_time;
+
 };
 
 int main(int argc, char **argv)
@@ -63,10 +68,23 @@ int main(int argc, char **argv)
 
     ImageGrabber igb(&SLAM);
 
+    igb.nImages = 0;
+
     ros::NodeHandle nh;
 
+    //TUM
+    message_filters::Subscriber<sensor_msgs::Image> rgb_sub(nh, "/camera/rgb/image_color", 1);
+    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "camera/depth/image", 1);
+
+
+    //nao
+/*
     message_filters::Subscriber<sensor_msgs::Image> rgb_sub(nh, "/camera/rgb/image_raw", 1);
     message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "camera/depth_registered/image_raw", 1);
+*/
+
+//    message_filters::Subscriber<sensor_msgs::Image> rgb_sub(nh, "/camera/rgb/image_raw", 1);
+//    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "camera/depth/image_raw", 1);
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
     message_filters::Synchronizer<sync_pol> sync(sync_pol(10), rgb_sub,depth_sub);
     sync.registerCallback(boost::bind(&ImageGrabber::GrabRGBD,&igb,_1,_2));
@@ -76,8 +94,16 @@ int main(int argc, char **argv)
     // Stop all threads
     SLAM.Shutdown();
 
+    std::chrono::steady_clock::time_point end_time = std::chrono::steady_clock::now();
+
+    double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(end_time - igb.start_time).count();
+
+    std::cout<<"total time "<<ttrack<<std::endl;
+    std::cout<<"average time "<<ttrack/igb.nImages<<std::endl;
+
     // Save camera trajectory
     SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+    SLAM.SaveKeyFrameTrajectoryTUM("CameraTrajectory.txt");
 
     ros::shutdown();
 
@@ -86,6 +112,9 @@ int main(int argc, char **argv)
 
 void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const sensor_msgs::ImageConstPtr& msgD)
 {
+	if (nImages == 0)
+	    start_time = std::chrono::steady_clock::now();
+
     // Copy the ros image message to cv::Mat.
     cv_bridge::CvImageConstPtr cv_ptrRGB;
     try
@@ -110,6 +139,10 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     }
 
     mpSLAM->TrackRGBD(cv_ptrRGB->image,cv_ptrD->image,cv_ptrRGB->header.stamp.toSec());
+
+    nImages++;
+
+    std::cout<<"nImages "<<nImages<<std::endl;
 }
 
 

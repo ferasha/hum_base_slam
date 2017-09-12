@@ -27,6 +27,7 @@
 #include<opencv2/core/core.hpp>
 
 #include<System.h>
+#include "Converter.h"
 
 using namespace std;
 
@@ -64,6 +65,8 @@ int main(int argc, char **argv)
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     ORB_SLAM2::System SLAM(argv[1],argv[2],ORB_SLAM2::System::RGBD,true);
 
+    if (SLAM.nImages > 0)
+    	nImages = SLAM.nImages;
     // Vector for tracking time statistics
     vector<float> vTimesTrack;
     vTimesTrack.resize(nImages);
@@ -72,12 +75,14 @@ int main(int argc, char **argv)
     cout << "Start processing sequence ..." << endl;
     cout << "Images in the sequence: " << nImages << endl << endl;
 
+    vector<vector<cv::Mat > > features;
+
     // Main loop
-    cv::Mat imRGB, imD;
+    cv::Mat imRGB, imD, imRGB2;
     for(int ni=0; ni<nImages; ni++)
     {
         // Read image and depthmap from file
-        imRGB = cv::imread(string(argv[3])+"/"+vstrImageFilenamesRGB[ni],CV_LOAD_IMAGE_UNCHANGED);
+        imRGB = cv::imread(string(argv[3])+"/"+vstrImageFilenamesRGB[ni],CV_LOAD_IMAGE_COLOR);
         imD = cv::imread(string(argv[3])+"/"+vstrImageFilenamesD[ni],CV_LOAD_IMAGE_UNCHANGED);
         double tframe = vTimestamps[ni];
 
@@ -88,14 +93,23 @@ int main(int argc, char **argv)
             return 1;
         }
 
+        std::cout<<"--------------------- tracking image "<<ni<<" timestamp "<<std::fixed<<tframe<<std::endl;
+
 #ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
 #else
         std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
 #endif
-
+        /*
         // Pass the image to the SLAM system
-        SLAM.TrackRGBD(imRGB,imD,tframe);
+        cv::Mat descriptors = SLAM.TrackRGBD(imRGB,imD,tframe);
+
+        vector<cv::Mat> vCurrentDesc = ORB_SLAM2::Converter::toDescriptorVector(descriptors);
+        features.push_back(vCurrentDesc);
+*/
+
+        cvtColor(imRGB,imRGB2,CV_RGB2BGR);
+        SLAM.TrackRGBD(imRGB2,imD,tframe);
 
 #ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
@@ -116,8 +130,20 @@ int main(int argc, char **argv)
 
         if(ttrack<T)
             usleep((T-ttrack)*1e6);
+
+
+        if (ni >= 10 && SLAM.mpTracker->mState == SLAM.mpTracker->eTrackingState::LOST) {
+        	nImages = ni;
+        	break;
+        }
+
     }
 
+/*
+    ORB_SLAM2::ORBVocabulary voc(10, 6, DBoW2::TF_IDF, DBoW2::L1_NORM);
+    voc.create(features);
+    voc.saveToTextFile(argv[1]);
+*/
     // Stop all threads
     SLAM.Shutdown();
 
@@ -134,7 +160,7 @@ int main(int argc, char **argv)
 
     // Save camera trajectory
     SLAM.SaveTrajectoryTUM("CameraTrajectory.txt");
-    SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");   
+    SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
 
     return 0;
 }
@@ -165,3 +191,4 @@ void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageF
         }
     }
 }
+

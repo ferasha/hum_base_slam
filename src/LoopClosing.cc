@@ -58,6 +58,9 @@ void LoopClosing::Run()
 {
     mbFinished =false;
 
+    int detected = 0;
+    int computesim3 = 0;
+
     while(1)
     {
         // Check if there are keyframes in the queue
@@ -66,10 +69,12 @@ void LoopClosing::Run()
             // Detect loop candidates and check covisibility consistency
             if(DetectLoop())
             {
+            	detected++;
                // Compute similarity transformation [sR|t]
                // In the stereo/RGBD case s=1
                if(ComputeSim3())
                {
+            	   computesim3++;
                    // Perform loop fusion and pose graph optimization
                    CorrectLoop();
                }
@@ -83,6 +88,9 @@ void LoopClosing::Run()
 
         usleep(5000);
     }
+
+    vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+    std::cout<<"KFs "<<vpKFs.size()<<" detected "<<detected<<" computesim3 "<<computesim3<<std::endl;
 
     SetFinish();
 }
