@@ -108,6 +108,18 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     else
         cout << "- color order: BGR (ignored if grayscale)" << endl;
 
+    max_inlier_error = fSettings["max_inlier_error"];
+    std::cout<<"max_inlier_error "<<max_inlier_error<<std::endl;
+
+    min_inliers_threshold = fSettings["min_inliers_threshold"];
+    std::cout<<"min_inliers_threshold "<<min_inliers_threshold<<std::endl;
+
+    optimization_max_error = fSettings["optimization_max_error"];
+    std::cout<<"optimization_max_error "<<optimization_max_error<<std::endl;
+
+    ransac_iterations = fSettings["ransac_iterations"];
+    std::cout<<"ransac_iterations "<<ransac_iterations<<std::endl;
+
     // Load ORB parameters
 
     int nFeatures = fSettings["ORBextractor.nFeatures"];
@@ -292,6 +304,11 @@ void Tracking::Track()
     {
         // System is initialized. Track Frame.
         bool bOK;
+        bool try_again = false;
+        int nmatchesM = 100;
+        bool bOKMap = true;
+        bool bOKRansac = true;
+
 
         // Initial camera pose estimation using motion model or relocalization (if tracking is lost)
         if(!mbOnlyTracking)
@@ -302,94 +319,44 @@ void Tracking::Track()
             if(mState==OK)
             {
                 // Local Mapping might have changed some MapPoints tracked in last frame
-                CheckReplacedInLastFrame();
+                CheckReplacedInLastFrame(mLastFrame);
 
                 if(mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)
                 {
-                    bOK = TrackReferenceKeyFrame();
+//                    bOK = TrackReferenceKeyFrame();
+                	std::cout<<"mnLastRelocFrameId "<<mnLastRelocFrameId<<std::endl;
+//                	UpdateLastFrame();
+                   	bOK = TrackLastFrameRansac(mLastFrame, nmatchesM, try_again);
                 }
                 else
                 {
-                    bOK = TrackWithMotionModel();
-                    if(!bOK)
-                        bOK = TrackReferenceKeyFrame();
+//                    bOK = TrackWithMotionModel();
+                    UpdateLastFrame();
+                	bOK = TrackLastFrameRansac(mLastFrame, nmatchesM, try_again);
                 }
             }
             else
             {
-                bOK = Relocalization();
+            	bOK = false;
+                //bOK = Relocalization();
+            	for (std::list<Frame>::reverse_iterator it=potentialRansacKFs.rbegin();
+            			it!=potentialRansacKFs.rend(); ++it) {
+            			 CheckReplacedInLastFrame(*it);
+                         UpdateFrame(*it);
+                         std::cout<<"Relocalization tracking with potentialRansacKFs ID "<<it->mnId
+                          		 <<" out of "<<potentialRansacKFs.size()<<std::endl;
+                         bOK = TrackLastFrameRansac(*it, nmatchesM, try_again);
+                         bOKRansac = bOK;
+                         if (bOK)
+                        	 break;
+                	}
+
             }
         }
         else
         {
             // Localization Mode: Local Mapping is deactivated
-
-            if(mState==LOST)
-            {
-                bOK = Relocalization();
-            }
-            else
-            {
-                if(!mbVO)
-                {
-                    // In last frame we tracked enough MapPoints in the map
-
-                    if(!mVelocity.empty())
-                    {
-                        bOK = TrackWithMotionModel();
-                    }
-                    else
-                    {
-                        bOK = TrackReferenceKeyFrame();
-                    }
-                }
-                else
-                {
-                    // In last frame we tracked mainly "visual odometry" points.
-
-                    // We compute two camera poses, one from motion model and one doing relocalization.
-                    // If relocalization is sucessfull we choose that solution, otherwise we retain
-                    // the "visual odometry" solution.
-
-                    bool bOKMM = false;
-                    bool bOKReloc = false;
-                    vector<MapPoint*> vpMPsMM;
-                    vector<bool> vbOutMM;
-                    cv::Mat TcwMM;
-                    if(!mVelocity.empty())
-                    {
-                        bOKMM = TrackWithMotionModel();
-                        vpMPsMM = mCurrentFrame.mvpMapPoints;
-                        vbOutMM = mCurrentFrame.mvbOutlier;
-                        TcwMM = mCurrentFrame.mTcw.clone();
-                    }
-                    bOKReloc = Relocalization();
-
-                    if(bOKMM && !bOKReloc)
-                    {
-                        mCurrentFrame.SetPose(TcwMM);
-                        mCurrentFrame.mvpMapPoints = vpMPsMM;
-                        mCurrentFrame.mvbOutlier = vbOutMM;
-
-                        if(mbVO)
-                        {
-                            for(int i =0; i<mCurrentFrame.N; i++)
-                            {
-                                if(mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])
-                                {
-                                    mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
-                                }
-                            }
-                        }
-                    }
-                    else if(bOKReloc)
-                    {
-                        mbVO = false;
-                    }
-
-                    bOK = bOKReloc || bOKMM;
-                }
-            }
+        	bOK = TrackNoMapping();
         }
 
         mCurrentFrame.mpReferenceKF = mpReferenceKF;
@@ -397,8 +364,27 @@ void Tracking::Track()
         // If we have an initial estimation of the camera pose and matching. Track the local map.
         if(!mbOnlyTracking)
         {
-            if(bOK)
+            if(bOK) {
                 bOK = TrackLocalMap();
+            }
+            if(!bOK){
+            	for (std::list<Frame>::reverse_iterator it=potentialRansacKFs.rbegin();
+            			it!=potentialRansacKFs.rend(); ++it) {
+            			 CheckReplacedInLastFrame(*it);
+                         UpdateFrame(*it);
+                         if (mCurrentFrame.mnId - it->mnId > 1)
+                        	 std::cout<<"tracking with potentialRansacKFs ID "<<it->mnId
+                        		 <<" out of "<<potentialRansacKFs.size()<<std::endl;
+                         bOK = TrackLastFrameRansac(*it, nmatchesM, try_again);
+                         bOKRansac = bOK;
+                         if (bOK) {
+                        	 bOKMap = TrackLocalMap();
+                             bOK = bOKMap;
+                         }
+                         if (bOK)
+                        	 break;
+                	}
+            }
         }
         else
         {
@@ -466,7 +452,14 @@ void Tracking::Track()
                 if(mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
                     mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
             }
+
+            mCurrentFrame.mTRelative = mCurrentFrame.mTcw*mCurrentFrame.mpReferenceKF->GetPoseInverse();
+            potentialRansacKFs.push_back(mCurrentFrame);
         }
+
+        while (potentialRansacKFs.size() > 5) {
+        	potentialRansacKFs.pop_front();
+       	}
 
         // Reset if the camera get lost soon after initialization
         if(mState==LOST)
@@ -505,6 +498,380 @@ void Tracking::Track()
 
 }
 
+bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& try_again, bool all_matches, double dist_ratio)
+{
+//	std::cout<<"TrackLastFrameRansac "<<std::endl;
+
+	try_again = true;
+/*
+	if (dist_ratio > 1.5)
+		dist_ratio = 0.7;
+*/
+	Ransac<Frame> ransac;
+//	Ransac ransac;
+	cv::Mat transf;
+    vector<MapPoint*> vpMapPointMatches;
+    int matches_size;
+    float match_perc;
+
+    fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
+
+    mCurrentFrame.SetPose(olderFrame.mTcw);
+
+    ransac.settings.max_inlier_error = max_inlier_error;
+    ransac.settings.min_inliers_threshold = min_inliers_threshold;
+    ransac.settings.dist_ratio = dist_ratio;
+
+    mCurrentFrame.mnInliers = 0;
+
+    std::map<int, cv::DMatch> query_vec;
+    bool good_tranf = ransac.getTransformation(olderFrame, mCurrentFrame, transf,
+    		vpMapPointMatches, matches_size, try_again, query_vec, match_perc);
+
+    nmatchesMap = 0;
+
+    mCurrentFrame.mvpMapPoints = vpMapPointMatches;
+
+    if(!good_tranf) {
+  //  	std::cout<<"not good ransac transf returning"<<std::endl;
+ //   	return false;
+    }
+    else if (!transf.empty() && (abs(transf.at<float>(0,3)) >= 0.2 || abs(transf.at<float>(1,3)) >= 0.2
+     		|| abs(transf.at<float>(2,3)) >= 0.2)) {
+     	std::cout<<"very large ransac translation"<<std::endl;
+ //    	if (!all_matches)
+ //    		return false;
+     }
+
+    mCurrentFrame.mnInliers = matches_size;
+
+    bool track_res = true;
+
+	std::vector<cv::DMatch> matches;
+	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
+		matches.push_back(it->second);
+	}
+//	 cv::Mat initial_matches_img;
+//	 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
+//			 matches, initial_matches_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
+//	 cv::imshow("initial_matches_4", initial_matches_img);
+
+//	 cv::waitKey(0);
+
+    if (matches_size < 4)
+    {
+    	std::cout<<"matches fewer than 4"<<std::endl;
+    	/*
+    	std::vector<cv::DMatch> matches;
+    	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
+    		matches.push_back(it->second);
+    	}
+
+		 cv::Mat initial_matches_img;
+		 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
+				 matches, initial_matches_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
+		 cv::imshow("initial_matches_4", initial_matches_img);
+
+		 cv::waitKey(0);
+*/
+		 track_res = false;
+    }
+
+    else {
+    float avg_chi2;
+//   bool po_result = true;
+
+//    mCurrentFrame.SetPose(transf*olderFrame.mTcw);
+//    bool po_result = Optimizer::PoseOptimization(&mCurrentFrame, 2.0, avg_chi2, true);
+    bool po_result = Optimizer::PoseOptimization(&mCurrentFrame);
+
+    cv::Mat LastTwc = cv::Mat::eye(4,4,CV_32F);
+    olderFrame.GetRotationInverse().copyTo(LastTwc.rowRange(0,3).colRange(0,3));
+    olderFrame.GetCameraCenter().copyTo(LastTwc.rowRange(0,3).col(3));
+
+    float prev_L1_norm = 0;
+    if (!mVelocity.empty())
+    	prev_L1_norm = abs(mVelocity.at<float>(0,3)) + abs(mVelocity.at<float>(1,3)) + abs(mVelocity.at<float>(2,3));
+
+    mVelocity = mCurrentFrame.mTcw*LastTwc;
+
+    float L1_norm = abs(mVelocity.at<float>(0,3)) + abs(mVelocity.at<float>(1,3)) + abs(mVelocity.at<float>(2,3));
+
+    std::cout<<mVelocity.at<float>(0,3)<<" "<<mVelocity.at<float>(1,3)<<" "<<mVelocity.at<float>(2,3)<<
+				 " -- prev_L1 norm "<<prev_L1_norm<<" L1 norm "<<L1_norm<<" norm larger than 0.2 "<<(L1_norm>0.2) <<std::endl;
+
+    cv::Mat pose1 = mCurrentFrame.mTcw;
+    cv::Mat pose2 = olderFrame.mTcw;
+
+    float da = abs(pose1.at<float>(0,3)-pose2.at<float>(0,3));
+    float db = abs(pose1.at<float>(1,3)-pose2.at<float>(1,3));
+    float dc = abs(pose1.at<float>(2,3)-pose2.at<float>(2,3));
+
+    float diff_norm = da + db + dc;
+    std::cout<<"current_frame po "<<pose1.at<float>(0,3)<<" "<<pose1.at<float>(1,3)<<" "<<pose1.at<float>(2,3)<<
+    		" older_frame po "<<pose2.at<float>(0,3)<<" "<<pose2.at<float>(1,3)<<" "<<pose2.at<float>(2,3)<<
+    		" da,db,dc "<<da<<","<<db<<","<<dc<<
+				 " diff norm "<<diff_norm<<" diff norm larger than 0.2 "<<(diff_norm>0.2 || diff_norm==0) <<std::endl;
+
+
+    if (!po_result) {
+    	std::cout<<"not good pose optimization"<<std::endl;
+    	track_res = false;
+    }
+    else {
+    	/*
+    	if (diff_norm == 0)
+        	track_res = false;
+    	else if (diff_norm > 0.2 && mCurrentFrame.mnId - olderFrame.mnId == 1)
+        	track_res = false;
+        else if (diff_norm > 0.3)
+        	track_res = false;
+        */
+//    	float max_dist = 0.06;
+    	float max_dist = 0.2; //0.15; //0.1;
+    	float max_dist_norm = 0.3; //0.2; //0.15;
+    	if ((mCurrentFrame.mnId - olderFrame.mnId) > 1) {
+    		max_dist = 0.15 + 0.05*(mCurrentFrame.mnId - olderFrame.mnId);
+    		max_dist_norm = 0.25 + 0.05*(mCurrentFrame.mnId - olderFrame.mnId);
+    	}
+
+  //  		max_dist = 0.04*(mCurrentFrame.mnId - olderFrame.mnId);
+  //  	float max_dist = 0.2*(mCurrentFrame.mnId - olderFrame.mnId);
+    	if (diff_norm == 0)
+        	track_res = false;
+    	else if (da>max_dist || db>max_dist || dc>max_dist || diff_norm >max_dist_norm) {
+    		std::cout<<"large indiv trans"<<std::endl;
+    		if (match_perc < 0.6)
+    			track_res = false;
+    	}
+
+/*
+        if (L1_norm > 0.2 && mCurrentFrame.mnId - olderFrame.mnId == 1) {
+        	return false;
+        }
+        else if (L1_norm > 0.25)
+        	return false;
+*/
+    }
+    }
+
+    std::cout<<"track_res "<<track_res<<std::endl;
+
+//    if (!track_res && matches_size >=4){
+        if (matches_size >=4){
+    	std::vector<cv::DMatch> matches, inliers_corr;
+    	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
+    		matches.push_back(it->second);
+    		if (!mCurrentFrame.mvbOutlier[it->first])
+    			inliers_corr.push_back(it->second);
+    	}
+/*
+		 cv::Mat initial_matches_img;
+		 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
+				 matches, initial_matches_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
+		 cv::imshow("intial_matches", initial_matches_img);
+*/
+//		 cv::Mat inliers_corr_img;
+//		 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
+//				 inliers_corr, inliers_corr_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
+//		 cv::imshow("inlier correspondences", inliers_corr_img);
+
+//		 cv::waitKey(0);
+    }
+/*
+    if (!track_res && !try_again) {
+    	try_again = true;
+    	track_res = TrackLastFrameRansac(olderFrame, nmatchesMap, try_again);
+    }
+*/
+
+
+    if (!track_res && dist_ratio >= 0.8){
+    	if (dist_ratio == 2.0)
+    		dist_ratio = 1.0;
+    	else
+    		dist_ratio = dist_ratio - 0.1;
+
+    	try_again = true;
+    	track_res = TrackLastFrameRansac(olderFrame, nmatchesMap, try_again, false, dist_ratio);
+    }
+
+ /*
+    if (!track_res && dist_ratio < 1.1){
+		dist_ratio = dist_ratio + 0.1;
+
+    	try_again = true;
+    	track_res = TrackLastFrameRansac(olderFrame, nmatchesMap, try_again, false, dist_ratio);
+    }
+*/
+    try_again = false;
+    return track_res;
+
+}
+
+void Tracking::UpdateFrame(Frame& frame)
+{
+    cv::Mat LastTwc = cv::Mat::eye(4,4,CV_32F);
+    frame.GetRotationInverse().copyTo(LastTwc.rowRange(0,3).colRange(0,3));
+    frame.GetCameraCenter().copyTo(LastTwc.rowRange(0,3).col(3));
+
+    cv::Mat old_pose = frame.mTcw;
+
+    // Update pose according to reference keyframe
+    KeyFrame* pRef = frame.mpReferenceKF;
+
+    if (pRef->isBad())
+    	std::cout<<"UpdateFrame pRef->isBad() frame "<<frame.mnId<<" pRef->mnId "<<pRef->mnId<<
+    	" pRef->mnFrameId "<<pRef->mnFrameId<<std::endl;
+
+    if (pRef->mnFrameId == frame.mnId)
+    	frame.SetPose(pRef->GetPose());
+    else {
+       	std::cout<<"frame and keyframe are different: frame "<<frame.mnId<<" pRef->mnId "<<pRef->mnId<<
+        	    	" pRef->mnFrameId "<<pRef->mnFrameId<<std::endl;
+    	frame.SetPose(frame.mTRelative*pRef->GetPose());
+    }
+
+    cv::Mat change = frame.mTcw*LastTwc;
+    if (abs(change.at<float>(0,3)) > 0.1 || abs(change.at<float>(1,3)) > 0.1 || abs(change.at<float>(2,3)) > 0.1) {
+    	std::cout<<"change larger than 0.1, frame.id: "<<frame.mnId<<std::endl;
+    	std::cout<<change.at<float>(0,3)<<" "<<change.at<float>(1,3)<<" "<<change.at<float>(2,3)<<std::endl;
+
+     	std::cout<<"id "<<frame.mnId<<" before: "<<old_pose.at<float>(0,3)<<" "
+     			<<old_pose.at<float>(1,3)<<" "<<old_pose.at<float>(2,3)<<std::endl;
+
+     	std::cout<<"id "<<frame.mnId<<" after: "<<frame.mTcw.at<float>(0,3)<<" "
+     			<<frame.mTcw.at<float>(1,3)<<" "<<frame.mTcw.at<float>(2,3)<<std::endl;
+    }
+
+    // Create "visual odometry" MapPoints
+    // We sort points according to their measured depth by the stereo/RGB-D sensor
+    vector<pair<float,int> > vDepthIdx;
+    vDepthIdx.reserve(frame.N);
+    for(int i=0; i<frame.N;i++)
+    {
+        float z = frame.mvDepth[i];
+        if(z>0)
+        {
+            vDepthIdx.push_back(make_pair(z,i));
+        }
+    }
+
+    if(vDepthIdx.empty())
+        return;
+
+    sort(vDepthIdx.begin(),vDepthIdx.end());
+
+    // We insert all close points (depth<mThDepth)
+    // If less than 100 close points, we insert the 100 closest ones.
+    int nPoints = 0;
+    for(size_t j=0; j<vDepthIdx.size();j++)
+    {
+        int i = vDepthIdx[j].second;
+
+        bool bCreateNew = false;
+
+        MapPoint* pMP = frame.mvpMapPoints[i];
+        if(!pMP)
+            bCreateNew = true;
+        else if(pMP->Observations()<1 || pMP->isBad())
+        {
+            bCreateNew = true;
+        }
+
+        if(bCreateNew)
+        {
+            cv::Mat x3D = frame.UnprojectStereo(i);
+            MapPoint* pNewMP = new MapPoint(x3D,mpMap,&frame,i);
+
+            frame.mvpMapPoints[i]=pNewMP;
+
+     //       mlpTemporalPoints.push_back(pNewMP);
+            nPoints++;
+        }
+        else
+        {
+            nPoints++;
+        }
+
+        if(vDepthIdx[j].first>mThDepth && nPoints>1000)
+            break;
+    }
+}
+
+bool Tracking::TrackNoMapping(){
+
+   	bool bOK = false;
+
+	if(mState==LOST)
+    {
+        bOK = Relocalization();
+    }
+    else
+    {
+        if(!mbVO)
+        {
+            // In last frame we tracked enough MapPoints in the map
+
+            if(!mVelocity.empty())
+            {
+                bOK = TrackWithMotionModel();
+            }
+            else
+            {
+                bOK = TrackReferenceKeyFrame();
+            }
+        }
+        else
+        {
+            // In last frame we tracked mainly "visual odometry" points.
+
+            // We compute two camera poses, one from motion model and one doing relocalization.
+            // If relocalization is sucessfull we choose that solution, otherwise we retain
+            // the "visual odometry" solution.
+
+            bool bOKMM = false;
+            bool bOKReloc = false;
+            vector<MapPoint*> vpMPsMM;
+            vector<bool> vbOutMM;
+            cv::Mat TcwMM;
+            if(!mVelocity.empty())
+            {
+                bOKMM = TrackWithMotionModel();
+                vpMPsMM = mCurrentFrame.mvpMapPoints;
+                vbOutMM = mCurrentFrame.mvbOutlier;
+                TcwMM = mCurrentFrame.mTcw.clone();
+            }
+            bOKReloc = Relocalization();
+
+            if(bOKMM && !bOKReloc)
+            {
+                mCurrentFrame.SetPose(TcwMM);
+                mCurrentFrame.mvpMapPoints = vpMPsMM;
+                mCurrentFrame.mvbOutlier = vbOutMM;
+
+                if(mbVO)
+                {
+                    for(int i =0; i<mCurrentFrame.N; i++)
+                    {
+                        if(mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])
+                        {
+                            mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
+                        }
+                    }
+                }
+            }
+            else if(bOKReloc)
+            {
+                mbVO = false;
+            }
+
+            bOK = bOKReloc || bOKMM;
+        }
+    }
+
+	return bOK;
+}
 
 void Tracking::StereoInitialization()
 {
@@ -736,18 +1103,18 @@ void Tracking::CreateInitialMapMonocular()
     mState=OK;
 }
 
-void Tracking::CheckReplacedInLastFrame()
+void Tracking::CheckReplacedInLastFrame(Frame& frame)
 {
-    for(int i =0; i<mLastFrame.N; i++)
+    for(int i =0; i<frame.N; i++)
     {
-        MapPoint* pMP = mLastFrame.mvpMapPoints[i];
+        MapPoint* pMP = frame.mvpMapPoints[i];
 
         if(pMP)
         {
             MapPoint* pRep = pMP->GetReplaced();
             if(pRep)
             {
-                mLastFrame.mvpMapPoints[i] = pRep;
+                frame.mvpMapPoints[i] = pRep;
             }
         }
     }
@@ -756,6 +1123,8 @@ void Tracking::CheckReplacedInLastFrame()
 
 bool Tracking::TrackReferenceKeyFrame()
 {
+	std::cout<<"TrackReferenceKeyFrame "<<std::endl;
+
     // Compute Bag of Words vector
     mCurrentFrame.ComputeBoW();
 
@@ -806,8 +1175,8 @@ void Tracking::UpdateLastFrame()
 
     mLastFrame.SetPose(Tlr*pRef->GetPose());
 
-    if(mnLastKeyFrameId==mLastFrame.mnId || mSensor==System::MONOCULAR || !mbOnlyTracking)
-        return;
+//    if(mnLastKeyFrameId==mLastFrame.mnId || mSensor==System::MONOCULAR || !mbOnlyTracking)
+//        return;
 
     // Create "visual odometry" MapPoints
     // We sort points according to their measured depth by the stereo/RGB-D sensor
@@ -826,6 +1195,9 @@ void Tracking::UpdateLastFrame()
         return;
 
     sort(vDepthIdx.begin(),vDepthIdx.end());
+
+
+//    std::cout<<"vDepthIdx.size() "<<vDepthIdx.size()<<std::endl;
 
     // We insert all close points (depth<mThDepth)
     // If less than 100 close points, we insert the 100 closest ones.
@@ -858,10 +1230,13 @@ void Tracking::UpdateLastFrame()
         {
             nPoints++;
         }
-
+/*
         if(vDepthIdx[j].first>mThDepth && nPoints>100)
             break;
+*/
     }
+//    std::cout<<"nPoints "<<nPoints<<std::endl;
+
 }
 
 bool Tracking::TrackWithMotionModel()
@@ -964,11 +1339,17 @@ bool Tracking::TrackLocalMap()
 
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
-    if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50)
-        return false;
+    if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50) {
+       	std::cout<<"TrackLocalMap mnMatchesInliers "<<mnMatchesInliers<<std::endl;
+       	std::cout<<"mnLastRelocFrameId "<<mnLastRelocFrameId<<" mMaxFrames "<<mMaxFrames<<std::endl;
+    	return false;
+    }
 
-    if(mnMatchesInliers<30)
-        return false;
+//    if(mnMatchesInliers<30) {
+    if(mnMatchesInliers<20) {
+    	std::cout<<"TrackLocalMap mnMatchesInliers "<<mnMatchesInliers<<std::endl;
+    	return false;
+    }
     else
         return true;
 }
@@ -1340,6 +1721,8 @@ void Tracking::UpdateLocalKeyFrames()
 
 bool Tracking::Relocalization()
 {
+	std::cout<<"Relocalization "<<std::endl;
+
     // Compute Bag of Words Vector
     mCurrentFrame.ComputeBoW();
 

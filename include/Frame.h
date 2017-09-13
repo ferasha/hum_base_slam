@@ -96,7 +96,11 @@ public:
     void ComputeStereoFromRGBD(const cv::Mat &imDepth);
 
     // Backprojects a keypoint (if stereo/depth info available) into 3D world coordinates.
-    cv::Mat UnprojectStereo(const int &i);
+    cv::Mat UnprojectStereo(const int &i, bool inWorld=true);
+
+    void keepKPvalidDepth(const cv::Mat& imDepth, cv::Mat& desc);
+
+    vector<MapPoint*> GetMapPointMatches();
 
 public:
     // Vocabulary used for relocalization.
@@ -118,6 +122,8 @@ public:
     static float invfy;
     cv::Mat mDistCoef;
 
+    int mnInliers;
+
     // Stereo baseline multiplied by fx.
     float mbf;
 
@@ -136,6 +142,8 @@ public:
     // In the RGB-D case, RGB images can be distorted.
     std::vector<cv::KeyPoint> mvKeys, mvKeysRight;
     std::vector<cv::KeyPoint> mvKeysUn;
+
+    cv::Mat mImRGB;
 
     // Corresponding stereo coordinate and depth for each keypoint.
     // "Monocular" keypoints have a negative value.
@@ -170,6 +178,8 @@ public:
     // Reference Keyframe.
     KeyFrame* mpReferenceKF;
 
+    cv::Mat mTRelative;
+
     // Scale pyramid info.
     int mnScaleLevels;
     float mfScaleFactor;
@@ -187,9 +197,7 @@ public:
 
     static bool mbInitialComputations;
 
-
 private:
-
     // Undistort keypoints given OpenCV distortion parameters.
     // Only for the RGB-D case. Stereo must be already rectified!
     // (called in the constructor).

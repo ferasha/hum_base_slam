@@ -47,7 +47,7 @@ Frame::Frame(const Frame &frame)
      mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
      mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor),
      mvScaleFactors(frame.mvScaleFactors), mvInvScaleFactors(frame.mvInvScaleFactors),
-     mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2)
+     mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2),mTRelative(frame.mTRelative.clone())
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++)
@@ -133,7 +133,13 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
 
     // ORB extraction
-    ExtractORB(0,imGray);
+//    ExtractORB(0,imGray);
+
+    cv::Mat temp;
+    (*mpORBextractorLeft)(imGray,cv::Mat(),mvKeys,temp);
+//    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" temp.rows "<<temp.rows<<std::endl;
+    keepKPvalidDepth(imDepth, temp);
+//    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" mDescriptors.rows "<<mDescriptors.rows<<std::endl;
 
     N = mvKeys.size();
 
@@ -168,6 +174,39 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     mb = mbf/fx;
 
     AssignFeaturesToGrid();
+}
+
+void Frame::keepKPvalidDepth(const cv::Mat& imDepth, cv::Mat& desc)
+{
+  unsigned int i = 0;
+  int oi=0;
+  bool erase = false;
+  while(i < mvKeys.size())
+  {
+	erase = false;
+    float d = imDepth.at<float>(cvRound(mvKeys[i].pt.y), cvRound(mvKeys[i].pt.x));
+    if(std::isnan(d) || d <=0)
+    {
+      erase = true;
+    }
+    else {
+		for (unsigned int j=0; j<i; j++){
+			if (mvKeys[i].pt.x == mvKeys[j].pt.x && mvKeys[i].pt.y == mvKeys[j].pt.y)
+			{
+			  erase = true;
+			  break;
+			}
+		}
+    }
+    if (erase)
+        mvKeys.erase(mvKeys.begin()+i);
+    else {
+    	mDescriptors.push_back(desc.row(oi));
+    	i++;
+    }
+    oi++;
+  }
+  mDescriptors.reshape(0,desc.cols);
 }
 
 
@@ -653,7 +692,8 @@ void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
         const float &v = kp.pt.y;
         const float &u = kp.pt.x;
 
-        const float d = imDepth.at<float>(v,u);
+//        const float d = imDepth.at<float>(v,u);
+        const float d = imDepth.at<float>(cvRound(v), cvRound(u));
 
         if(d>0)
         {
@@ -663,7 +703,12 @@ void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
     }
 }
 
-cv::Mat Frame::UnprojectStereo(const int &i)
+vector<MapPoint*> Frame::GetMapPointMatches()
+{
+    return mvpMapPoints;
+}
+
+cv::Mat Frame::UnprojectStereo(const int &i, bool inWorld)
 {
     const float z = mvDepth[i];
     if(z>0)
@@ -673,7 +718,10 @@ cv::Mat Frame::UnprojectStereo(const int &i)
         const float x = (u-cx)*z*invfx;
         const float y = (v-cy)*z*invfy;
         cv::Mat x3Dc = (cv::Mat_<float>(3,1) << x, y, z);
-        return mRwc*x3Dc+mOw;
+        if (inWorld)
+        	return mRwc*x3Dc+mOw;
+        else
+        	return x3Dc;
     }
     else
         return cv::Mat();

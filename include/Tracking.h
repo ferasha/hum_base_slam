@@ -37,6 +37,7 @@
 #include "Initializer.h"
 #include "MapDrawer.h"
 #include "System.h"
+#include "Ransac.h"
 
 #include <mutex>
 
@@ -120,6 +121,10 @@ protected:
     // Main tracking function. It is independent of the input sensor.
     void Track();
 
+    bool TrackNoMapping();
+
+    void UpdateFrame(Frame& frame);
+
     // Map initialization for stereo and RGB-D
     void StereoInitialization();
 
@@ -127,10 +132,11 @@ protected:
     void MonocularInitialization();
     void CreateInitialMapMonocular();
 
-    void CheckReplacedInLastFrame();
+    void CheckReplacedInLastFrame(Frame& frame);
     bool TrackReferenceKeyFrame();
     void UpdateLastFrame();
     bool TrackWithMotionModel();
+    bool TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& try_again, bool all_matches = false, double dist_ratio=2.0);
 
     bool Relocalization();
 
@@ -207,11 +213,18 @@ protected:
     unsigned int mnLastKeyFrameId;
     unsigned int mnLastRelocFrameId;
 
+    std::list<Frame> potentialRansacKFs;
+
     //Motion Model
     cv::Mat mVelocity;
 
     //Color order (true RGB, false BGR, ignored if grayscale)
     bool mbRGB;
+
+    double max_inlier_error;
+    int min_inliers_threshold;
+    double optimization_max_error;
+    int ransac_iterations;
 
     list<MapPoint*> mlpTemporalPoints;
 };

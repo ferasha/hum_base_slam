@@ -131,12 +131,12 @@ int main(int argc, char **argv)
         if(ttrack<T)
             usleep((T-ttrack)*1e6);
 
-
+/*
         if (ni >= 10 && SLAM.mpTracker->mState == SLAM.mpTracker->eTrackingState::LOST) {
         	nImages = ni;
         	break;
         }
-
+*/
     }
 
 /*

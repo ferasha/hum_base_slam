@@ -64,7 +64,7 @@ public:
 
   bool getTransformation(TFrame& last_frame, TFrame& current_frame, cv::Mat& transformation,
 //  bool getTransformation(Frame& last_frame, Frame& current_frame, cv::Mat& transformation,
-		  vector<MapPoint*>& vpMapPointMatches, int& matches_size, bool second_time, std::map<int, cv::DMatch>& query_vec);
+		  vector<MapPoint*>& vpMapPointMatches, int& matches_size, bool second_time, std::map<int, cv::DMatch>& query_vec, float& match_perc);
 //		  vector<MapPoint*>& vpMapPointMatches, int& matches_size, bool second_time = false);
 
 private:

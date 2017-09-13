@@ -29,8 +29,8 @@ unsigned int Ransac<TFrame>::featureMatching(TFrame& last_frame, TFrame& current
 
 	matches.clear();
 
-	std::cout<<"current_frame.mDescriptors.rows "<<current_frame.mDescriptors.rows<<std::endl;
-	std::cout<<"dist_ratio "<<settings.dist_ratio<<std::endl;
+//	std::cout<<"current_frame.mDescriptors.rows "<<current_frame.mDescriptors.rows<<std::endl;
+//	std::cout<<"dist_ratio "<<settings.dist_ratio<<std::endl;
 
 	cv::Ptr<cv::DescriptorMatcher> matcher = new cv::BFMatcher(cv::NORM_HAMMING);
 
@@ -336,7 +336,7 @@ template<class TFrame>
 bool Ransac<TFrame>::getTransformation(TFrame& last_frame, TFrame& current_frame,
 //bool Ransac::getTransformation(Frame& last_frame, Frame& current_frame,
 		cv::Mat& transformation, vector<MapPoint*>& vpMapPointMatches, int& matches_size, bool try_again,
-		std::map<int, cv::DMatch>& query_vec)
+		std::map<int, cv::DMatch>& query_vec, float& match_perc)
 //				cv::Mat& transformation, vector<MapPoint*>& vpMapPointMatches, int& matches_size, bool second_time)
 
 {
@@ -462,6 +462,7 @@ bool Ransac<TFrame>::getTransformation(TFrame& last_frame, TFrame& current_frame
 			<< " " << matches.size() * 1.0 / (initial_matches).size()
 			<< " try_again:" << try_again << std::endl;
 
+	match_perc = matches.size() * 1.0 / (initial_matches).size();
 //	 if (second_time_) {
 
 if (false && (!found_transformation || (initial_matches).size() <= 10)){
