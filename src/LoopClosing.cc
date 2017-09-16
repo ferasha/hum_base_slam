@@ -168,6 +168,7 @@ bool LoopClosing::DetectLoop()
     for(size_t i=0, iend=vpCandidateKFs.size(); i<iend; i++)
     {
         KeyFrame* pCandidateKF = vpCandidateKFs[i];
+        std::cout<<"currentKF "<<mpCurrentKF->mnFrameId<<" candidate "<<pCandidateKF->mnFrameId<<std::endl;
 
         set<KeyFrame*> spCandidateGroup = pCandidateKF->GetConnectedKeyFrames();
         spCandidateGroup.insert(pCandidateKF);
@@ -264,8 +265,16 @@ bool LoopClosing::ComputeSim3()
         // avoid that local mapping erase it while it is being processed in this thread
         pKF->SetNotErase();
 
+        if ((mpCurrentKF->mnId - pKF->mnId) < 1000) {
+        	std::cout<<"lc pkf "<<pKF->mnId<<" mpCurrentKF "<<mpCurrentKF->mnId<<std::endl;
+        	continue;
+        } else {
+        	std::cout<<"lc larger than 1000"<<std::endl;
+        }
+
         if(pKF->isBad())
         {
+        	std::cout<<"lc pkf "<<pKF->mnId<<" is bad"<<std::endl;
             vbDiscarded[i] = true;
             continue;
         }
@@ -274,6 +283,7 @@ bool LoopClosing::ComputeSim3()
 
         if(nmatches<20)
         {
+        	std::cout<<"lc pkf "<<pKF->mnId<<" matches(2) "<<nmatches<<std::endl;
             vbDiscarded[i] = true;
             continue;
         }
@@ -336,6 +346,7 @@ bool LoopClosing::ComputeSim3()
                 // If optimization is succesful stop ransacs and continue
                 if(nInliers>=20)
                 {
+                	std::cout<<"lc pkf "<<pKF->mnId<<" nInliers "<<nInliers<<std::endl;
                     bMatch = true;
                     mpMatchedKF = pKF;
                     g2o::Sim3 gSmw(Converter::toMatrix3d(pKF->GetRotation()),Converter::toVector3d(pKF->GetTranslation()),1.0);
@@ -351,6 +362,7 @@ bool LoopClosing::ComputeSim3()
 
     if(!bMatch)
     {
+    	std::cout<<"no bmatch returning"<<std::endl;
         for(int i=0; i<nInitialCandidates; i++)
              mvpEnoughConsistentCandidates[i]->SetErase();
         mpCurrentKF->SetErase();
@@ -399,6 +411,7 @@ bool LoopClosing::ComputeSim3()
     }
     else
     {
+    	std::cout<<"nTotalMatches "<<nTotalMatches<<std::endl;
         for(int i=0; i<nInitialCandidates; i++)
             mvpEnoughConsistentCandidates[i]->SetErase();
         mpCurrentKF->SetErase();
@@ -412,8 +425,6 @@ void LoopClosing::CorrectLoop()
     cout << "Loop detected!" << endl;
 
     // Send a stop signal to Local Mapping
-    // Avoid new keyframes are inserted while correcting the loop
-    mpLocalMapper->RequestStop();
 
     // If a Global Bundle Adjustment is running, abort it
     if(isRunningGBA())
@@ -429,6 +440,12 @@ void LoopClosing::CorrectLoop()
             delete mpThreadGBA;
         }
     }
+
+    // Get Map Mutex
+    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+
+    // Avoid new keyframes are inserted while correcting the loop
+    mpLocalMapper->RequestStop();
 
     // Wait until Local Mapping has effectively stopped
     while(!mpLocalMapper->isStopped())
@@ -449,8 +466,8 @@ void LoopClosing::CorrectLoop()
 
 
     {
-        // Get Map Mutex
-        unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+//        // Get Map Mutex
+//        unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
         for(vector<KeyFrame*>::iterator vit=mvpCurrentConnectedKFs.begin(), vend=mvpCurrentConnectedKFs.end(); vit!=vend; vit++)
         {
@@ -577,13 +594,13 @@ void LoopClosing::CorrectLoop()
     // Add loop edge
     mpMatchedKF->AddLoopEdge(mpCurrentKF);
     mpCurrentKF->AddLoopEdge(mpMatchedKF);
-
+/*
     // Launch a new thread to perform Global Bundle Adjustment
     mbRunningGBA = true;
     mbFinishedGBA = false;
     mbStopGBA = false;
     mpThreadGBA = new thread(&LoopClosing::RunGlobalBundleAdjustment,this,mpCurrentKF->mnId);
-
+*/
     // Loop closed. Release Local Mapping.
     mpLocalMapper->Release();    
 
@@ -606,8 +623,8 @@ void LoopClosing::SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap)
         vector<MapPoint*> vpReplacePoints(mvpLoopMapPoints.size(),static_cast<MapPoint*>(NULL));
         matcher.Fuse(pKF,cvScw,mvpLoopMapPoints,4,vpReplacePoints);
 
-        // Get Map Mutex
-        unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+//        // Get Map Mutex
+//        unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
         const int nLP = mvpLoopMapPoints.size();
         for(int i=0; i<nLP;i++)
         {
@@ -670,6 +687,10 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
         {
             cout << "Global Bundle Adjustment finished" << endl;
             cout << "Updating map ..." << endl;
+
+            // Get Map Mutex
+            unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+
             mpLocalMapper->RequestStop();
             // Wait until Local Mapping has effectively stopped
 
@@ -677,9 +698,6 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
             {
                 usleep(1000);
             }
-
-            // Get Map Mutex
-            unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
             // Correct keyframes starting at map first keyframe
             list<KeyFrame*> lpKFtoCheck(mpMap->mvpKeyFrameOrigins.begin(),mpMap->mvpKeyFrameOrigins.end());

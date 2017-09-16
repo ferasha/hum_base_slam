@@ -51,6 +51,8 @@ public:
 
     void InsertKeyFrame(KeyFrame* pKF);
 
+    void MainProcessing();
+
     // Thread Synch
     void RequestStop();
     void RequestReset();

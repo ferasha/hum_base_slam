@@ -298,6 +298,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
                 e->setMeasurement(obs);
                 const float invSigma2 = pFrame->mvInvLevelSigma2[kpUn.octave];
                 e->setInformation(Eigen::Matrix2d::Identity()*invSigma2);
+//                e->setInformation(Eigen::Matrix2d::Identity());
 
                 g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
                 e->setRobustKernel(rk);
@@ -360,6 +361,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     }
     }
 
+//   std::cout<<"nInitialCorrespondences "<<nInitialCorrespondences<<" vpEdgesMono.size() "<<vpEdgesMono.size()<<" vpEdgesStereo.size() "<<vpEdgesStereo.size()<<std::endl;
 
     if(nInitialCorrespondences<3)
         return 0;
@@ -437,6 +439,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
                 e->setRobustKernel(0);
         }
 
+//        std::cout<<"nBad "<<nBad<<std::endl;
         if(optimizer.edges().size()<10)
             break;
     }    
@@ -986,7 +989,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
     optimizer.initializeOptimization();
     optimizer.optimize(20);
 
-    unique_lock<mutex> lock(pMap->mMutexMapUpdate);
+//    unique_lock<mutex> lock(pMap->mMutexMapUpdate);
 
     // SE3 Pose Recovering. Sim3:[sR t;0 1] -> SE3:[R t/s;0 1]
     for(size_t i=0;i<vpKFs.size();i++)
@@ -1005,6 +1008,25 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
         eigt *=(1./s); //[R t/s;0 1]
 
         cv::Mat Tiw = Converter::toCvSE3(eigR,eigt);
+
+        cv::Mat old_pose = pKFi->GetPose();
+
+        float da = abs(Tiw.at<float>(0,3)-old_pose.at<float>(0,3));
+        float db = abs(Tiw.at<float>(1,3)-old_pose.at<float>(1,3));
+        float dc = abs(Tiw.at<float>(2,3)-old_pose.at<float>(2,3));
+
+        if (da > 0.1 || db > 0.1 || dc > 0.1) {
+        	std::cout<<"optimize larger than 0.1"<<std::endl;
+        	std::cout<<da<<" "<<db<<" "<<dc<<std::endl;
+
+        	std::cout<<"id "<<pKFi->mnId<<" before optimizeessential "<<
+                old_pose.at<float>(0,3)<<" "<<old_pose.at<float>(1,3)<<
+                		" "<<old_pose.at<float>(2,3)<<std::endl;
+
+        	        std::cout<<"id "<<pKFi->mnId<<" after optimizeessential "<<
+        	        Tiw.at<float>(0,3)<<" "<<Tiw.at<float>(1,3)<<
+        	        		" "<<Tiw.at<float>(2,3)<<std::endl;
+        }
 
         pKFi->SetPose(Tiw);
     }

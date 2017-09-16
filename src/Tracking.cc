@@ -331,7 +331,8 @@ void Tracking::Track()
                 else
                 {
 //                    bOK = TrackWithMotionModel();
-                    UpdateLastFrame();
+ //                   UpdateLastFrame();
+                    UpdateFrame(mLastFrame);
                 	bOK = TrackLastFrameRansac(mLastFrame, nmatchesM, try_again);
                 }
             }
@@ -440,7 +441,8 @@ void Tracking::Track()
             mlpTemporalPoints.clear();
 
             // Check if we need to insert a new keyframe
-            if(NeedNewKeyFrame())
+//            if(NeedNewKeyFrame())
+            if (mCurrentFrame.mnId>=mnLastKeyFrameId+30)
                 CreateNewKeyFrame();
 
             // We allow points with high innovation (considererd outliers by the Huber Function)
@@ -495,6 +497,9 @@ void Tracking::Track()
         mlFrameTimes.push_back(mlFrameTimes.back());
         mlbLost.push_back(mState==LOST);
     }
+
+    std::cout<<mCurrentFrame.mnId<<"("<<mCurrentFrame.mpReferenceKF->mnFrameId<<","
+    		<<mCurrentFrame.mpReferenceKF->mnId<<") "<<std::endl;
 
 }
 
@@ -551,13 +556,14 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
 	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
 		matches.push_back(it->second);
 	}
-//	 cv::Mat initial_matches_img;
-//	 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
-//			 matches, initial_matches_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
-//	 cv::imshow("initial_matches_4", initial_matches_img);
+/*
+	 cv::Mat initial_matches_img;
+	 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
+			 matches, initial_matches_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
+	 cv::imshow("initial_matches_4", initial_matches_img);
 
-//	 cv::waitKey(0);
-
+	 cv::waitKey(0);
+*/
     if (matches_size < 4)
     {
     	std::cout<<"matches fewer than 4"<<std::endl;
@@ -1312,7 +1318,7 @@ bool Tracking::TrackLocalMap()
     SearchLocalPoints();
 
     // Optimize Pose
-    Optimizer::PoseOptimization(&mCurrentFrame);
+ //   Optimizer::PoseOptimization(&mCurrentFrame);
     mnMatchesInliers = 0;
 
     // Update MapPoints Statistics
@@ -1336,22 +1342,46 @@ bool Tracking::TrackLocalMap()
 
         }
     }
+/*
+    cv::Mat pose1 = mCurrentFrame.mTcw;
+    cv::Mat pose2 = mLastFrame.mTcw;
 
+    float da = abs(pose1.at<float>(0,3)-pose2.at<float>(0,3));
+    float db = abs(pose1.at<float>(1,3)-pose2.at<float>(1,3));
+    float dc = abs(pose1.at<float>(2,3)-pose2.at<float>(2,3));
+
+    float diff_norm = da + db + dc;
+    std::cout<<"current_frame po "<<pose1.at<float>(0,3)<<" "<<pose1.at<float>(1,3)<<" "<<pose1.at<float>(2,3)<<
+    		" older_frame po "<<pose2.at<float>(0,3)<<" "<<pose2.at<float>(1,3)<<" "<<pose2.at<float>(2,3)<<
+    		" da,db,dc "<<da<<","<<db<<","<<dc<<
+				 " diff norm "<<diff_norm<<" diff norm larger than 0.2 "<<(diff_norm>0.2 || diff_norm==0) <<std::endl;
+
+    float max_dist = 0.2; //0.15; //0.1;
+    float max_dist_norm = 0.3; //0.2; //0.15;
+
+    if (da>max_dist || db>max_dist || dc>max_dist || diff_norm >max_dist_norm) {
+    	std::cout<<"large tracklocalmap indiv trans"<<std::endl;
+    }
+
+*/
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
-    if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50) {
-       	std::cout<<"TrackLocalMap mnMatchesInliers "<<mnMatchesInliers<<std::endl;
+//    if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50) {
+    if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<20) {
+    	std::cout<<"TrackLocalMap mnMatchesInliers "<<mnMatchesInliers<<std::endl;
        	std::cout<<"mnLastRelocFrameId "<<mnLastRelocFrameId<<" mMaxFrames "<<mMaxFrames<<std::endl;
-    	return false;
+ //   	return false;
     }
 
 //    if(mnMatchesInliers<30) {
-    if(mnMatchesInliers<20) {
+    if(mnMatchesInliers<10) {
     	std::cout<<"TrackLocalMap mnMatchesInliers "<<mnMatchesInliers<<std::endl;
-    	return false;
+  //  	return false;
     }
     else
         return true;
+
+    return true;
 }
 
 
@@ -1443,8 +1473,15 @@ bool Tracking::NeedNewKeyFrame()
 
 void Tracking::CreateNewKeyFrame()
 {
-    if(!mpLocalMapper->SetNotStop(true))
-        return;
+	/*
+    if(!mpLocalMapper->SetNotStop(true)) {
+    	std::cout<<"did not create a new keyframe"<<std::endl;
+    	return;
+    }
+    */
+    while(!mpLocalMapper->SetNotStop(true)) {
+    	usleep(3000);
+    }
 
     KeyFrame* pKF = new KeyFrame(mCurrentFrame,mpMap,mpKeyFrameDB);
 
@@ -1559,7 +1596,7 @@ void Tracking::SearchLocalPoints()
             nToMatch++;
         }
     }
-
+/*
     if(nToMatch>0)
     {
         ORBmatcher matcher(0.8);
@@ -1571,6 +1608,7 @@ void Tracking::SearchLocalPoints()
             th=5;
         matcher.SearchByProjection(mCurrentFrame,mvpLocalMapPoints,th);
     }
+*/
 }
 
 void Tracking::UpdateLocalMap()

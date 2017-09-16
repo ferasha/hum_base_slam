@@ -57,34 +57,7 @@ void LocalMapping::Run()
         // Check if there are keyframes in the queue
         if(CheckNewKeyFrames())
         {
-            // BoW conversion and insertion in Map
-            ProcessNewKeyFrame();
-
-            // Check recent MapPoints
-            MapPointCulling();
-
-            // Triangulate new MapPoints
-            CreateNewMapPoints();
-
-            if(!CheckNewKeyFrames())
-            {
-                // Find more matches in neighbor keyframes and fuse point duplications
-                SearchInNeighbors();
-            }
-
-            mbAbortBA = false;
-
-            if(!CheckNewKeyFrames() && !stopRequested())
-            {
-                // Local BA
-                if(mpMap->KeyFramesInMap()>2)
-                    Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
-
-                // Check redundant local Keyframes
-                KeyFrameCulling();
-            }
-
-            mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
+        	MainProcessing();
         }
         else if(Stop())
         {
@@ -109,6 +82,38 @@ void LocalMapping::Run()
     }
 
     SetFinish();
+}
+
+void LocalMapping::MainProcessing(){
+    // BoW conversion and insertion in Map
+    ProcessNewKeyFrame();
+
+    // Check recent MapPoints
+    MapPointCulling();
+
+    // Triangulate new MapPoints
+//           CreateNewMapPoints();
+
+    if(!CheckNewKeyFrames())
+    {
+        // Find more matches in neighbor keyframes and fuse point duplications
+//               SearchInNeighbors();
+    }
+
+    mbAbortBA = false;
+
+    if(!CheckNewKeyFrames() && !stopRequested())
+    {
+        // Local BA
+//              if(mpMap->KeyFramesInMap()>2)
+//                  Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
+
+        // Check redundant local Keyframes
+//              KeyFrameCulling();
+    }
+
+    mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
+
 }
 
 void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
@@ -565,6 +570,10 @@ bool LocalMapping::Stop()
     unique_lock<mutex> lock(mMutexStop);
     if(mbStopRequested && !mbNotStop)
     {
+        while(CheckNewKeyFrames())
+        {
+        	MainProcessing();
+        }
         mbStopped = true;
         cout << "Local Mapping STOP" << endl;
         return true;
