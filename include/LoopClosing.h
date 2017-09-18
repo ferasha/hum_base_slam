@@ -26,7 +26,7 @@
 #include "Map.h"
 #include "ORBVocabulary.h"
 #include "Tracking.h"
-
+#include "FabmapLC.h"
 #include "KeyFrameDatabase.h"
 
 #include <thread>
@@ -51,7 +51,7 @@ public:
 
 public:
 
-    LoopClosing(Map* pMap, KeyFrameDatabase* pDB, ORBVocabulary* pVoc,const bool bFixScale);
+    LoopClosing(Map* pMap, KeyFrameDatabase* pDB, ORBVocabulary* pVoc,const bool bFixScale, const string &strSettingPath);
 
     void SetTracker(Tracking* pTracker);
 
@@ -85,6 +85,10 @@ protected:
     bool CheckNewKeyFrames();
 
     bool DetectLoop();
+    bool DetectLoopFabmap();
+
+    int RunRansac(cv::Mat& imRGBCurrent, cv::Mat& imRGBOld, vector<MapPoint*>& vpMapPointMatches,
+    		double dist_ratio, KeyFrame *pKF, cv::Mat& transf);
 
     bool ComputeSim3();
 
@@ -140,6 +144,7 @@ protected:
     // Fix scale in the stereo/RGB-D case
     bool mbFixScale;
 
+    FabmapLC fabmapLC;
 
     bool mnFullBAIdx;
 };

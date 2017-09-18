@@ -56,7 +56,7 @@ DepthMapFactor: 1000.0
 useORB: 0
 
 #nImages: 2745
-nImages: -1
+nImages: 200
 
 max_inlier_error: 0.09
 
@@ -66,9 +66,10 @@ optimization_max_error: 2.0
 
 ransac_iterations: 10
 
-vocab: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/big_500_new/vocab.yml"
-clTree: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/big_500_new/clTree.yml"
-trainbows: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/big_500_new/trainbows.yml"
+#big_500_new
+vocab: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/new_ORB_64/vocab.yml"
+clTree: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/new_ORB_64/clTree.yml"
+trainbows: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/new_ORB_64/trainbows.yml"
 FabMapVersion: "FABMAP2"
 NewPlaceMethod: "Sampled"
 BayesMethod: "ChowLiu"

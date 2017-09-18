@@ -442,7 +442,7 @@ void Tracking::Track()
 
             // Check if we need to insert a new keyframe
 //            if(NeedNewKeyFrame())
-            if (mCurrentFrame.mnId>=mnLastKeyFrameId+30)
+//            if (mCurrentFrame.mnId>=mnLastKeyFrameId+30)
                 CreateNewKeyFrame();
 
             // We allow points with high innovation (considererd outliers by the Huber Function)

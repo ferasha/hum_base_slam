@@ -75,7 +75,7 @@ void LocalMapping::Run()
         // Tracking will see that Local Mapping is busy
         SetAcceptKeyFrames(true);
 
-        if(CheckFinish())
+        if(CheckFinish() && !CheckNewKeyFrames())
             break;
 
         usleep(3000);

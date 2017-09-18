@@ -91,8 +91,8 @@ public:
     MapPoint* GetMapPoint(const size_t &idx);
 
     // KeyPoint functions
-    std::vector<size_t> GetFeaturesInArea(const float &x, const float  &y, const float  &r) const;
-    cv::Mat UnprojectStereo(int i);
+    std::vector<size_t> GetFeaturesInArea(const float &x, const float  &y, const float &r) const;
+    cv::Mat UnprojectStereo(int i, bool inWorld=true);
 
     // Image
     bool IsInImage(const float &x, const float &y) const;
@@ -188,6 +188,7 @@ public:
     const int mnMaxY;
     const cv::Mat mK;
 
+    cv::Mat mImRGB;
 
     // The following variables need to be accessed trough a mutex to be thread safe.
 protected:

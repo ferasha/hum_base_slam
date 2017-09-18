@@ -242,8 +242,10 @@ unsigned int Ransac<TFrame>::featureMatching(TFrame& last_frame, TFrame& current
 //	std::vector<cv::DMatch> temp_matches;
 	cv::Mat mask(current_frame.N, last_frame.N, CV_8UC1, cv::Scalar(0));
 	for (int i=0; i<current_frame.N; i++) {
+//		std::vector<size_t> indices = last_frame.GetFeaturesInArea(current_frame.mvKeys[i].pt.x,
+//				current_frame.mvKeys[i].pt.y, 400, 100);
 		std::vector<size_t> indices = last_frame.GetFeaturesInArea(current_frame.mvKeys[i].pt.x,
-				current_frame.mvKeys[i].pt.y, 400, 100);
+				current_frame.mvKeys[i].pt.y, 400);
 		for (size_t f=0; f<indices.size(); f++){
 			mask.ptr<uchar>(i)[indices[f]] = 255;
 		}
@@ -253,8 +255,10 @@ unsigned int Ransac<TFrame>::featureMatching(TFrame& last_frame, TFrame& current
 	std::vector<cv::DMatch> temp_matches2;
 	cv::Mat mask2(last_frame.N, current_frame.N, CV_8UC1, cv::Scalar(0));
 	for (int i=0; i<last_frame.N; i++) {
+//		std::vector<size_t> indices2 = current_frame.GetFeaturesInArea(last_frame.mvKeys[i].pt.x,
+//				last_frame.mvKeys[i].pt.y, 400, 100);
 		std::vector<size_t> indices2 = current_frame.GetFeaturesInArea(last_frame.mvKeys[i].pt.x,
-				last_frame.mvKeys[i].pt.y, 400, 100);
+				last_frame.mvKeys[i].pt.y, 400);
 		for (size_t f=0; f<indices2.size(); f++){
 			mask2.ptr<uchar>(i)[indices2[f]] = 255;
 		}
