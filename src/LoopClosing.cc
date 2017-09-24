@@ -89,7 +89,7 @@ void LoopClosing::Run()
         if(CheckFinish() && !CheckNewKeyFrames())
             break;
 
-        usleep(5000);
+        usleep(1000);
     }
 
     vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
@@ -134,6 +134,14 @@ bool LoopClosing::DetectLoopFabmap()
         mvConsistentGroups.clear();
         mpCurrentKF->SetErase();
         return false;
+    }
+    else {
+    	if ((mpCurrentKF->mnFrameId - vpCandidateKFs[0]->mnFrameId) < 1000 || mpCurrentKF->mnFrameId < 2000){
+            mpKeyFrameDB->add(mpCurrentKF);
+            mvConsistentGroups.clear();
+            mpCurrentKF->SetErase();
+            return false;
+    	}
     }
 
     mvpEnoughConsistentCandidates = vpCandidateKFs;
@@ -326,8 +334,7 @@ bool LoopClosing::ComputeSim3()
 
     cv::Mat old_pose = mpCurrentKF->GetPose().clone();
 
-    // Get Map Mutex
-    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+    unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
 
     std::cout<<"pause mapping"<<std::endl;
     mpLocalMapper->RequestStop();
@@ -338,6 +345,9 @@ bool LoopClosing::ComputeSim3()
         usleep(1000);
     }
 
+    // Get Map Mutex
+    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+
     for(int i=0; i<nInitialCandidates; i++)
     {
         KeyFrame* pKF = mvpEnoughConsistentCandidates[i];
@@ -345,9 +355,9 @@ bool LoopClosing::ComputeSim3()
         // avoid that local mapping erase it while it is being processed in this thread
         pKF->SetNotErase();
 
-        if ((mpCurrentKF->mnId - pKF->mnId) < 1500 || mpCurrentKF->mnId < 2000) {
+        if ((mpCurrentKF->mnFrameId - pKF->mnFrameId) < 1000 || mpCurrentKF->mnFrameId < 2000) {
         	std::cout<<"lc pkf "<<pKF->mnId<<"("<<pKF->mnFrameId<<") mpCurrentKF "<<mpCurrentKF->mnId<<"("<<mpCurrentKF->mnFrameId<<")"<<std::endl;
-   //     	continue;
+        	continue;
         } else {
         	std::cout<<"lc larger than 1000"<<std::endl;
         }
@@ -360,7 +370,7 @@ bool LoopClosing::ComputeSim3()
         }
 
 //        int nmatches = matcher.SearchByBoW(mpCurrentKF,pKF,vvpMapPointMatches[i]);
-
+/*
         int empty_points = 0;
         int bad_points = 0;
         for(size_t i=0; i<pKF->N;i++)
@@ -402,7 +412,8 @@ bool LoopClosing::ComputeSim3()
         }
 
         std::cout<<"empty_points "<<empty_points<<" bad points "<<bad_points<<std::endl;
-
+*/
+/*
     	std::stringstream path;
     	path<<fixed<<"/media/rasha/Seagate Backup Plus Drive/nao_motion_capture_2/experiment8/rgb/"<<
     	    		setprecision(6)<<mpCurrentKF->mTimeStamp<<".png";
@@ -412,6 +423,9 @@ bool LoopClosing::ComputeSim3()
 
     	cv::Mat imRGBCurrent = cv::imread(path.str(),CV_LOAD_IMAGE_COLOR);
         cv::Mat imRGBOld = cv::imread(pathOld.str(),CV_LOAD_IMAGE_COLOR);
+*/
+        cv::Mat imRGBCurrent;
+        cv::Mat imRGBOld;
 
         double dist_ratio = 1.0;
         int nmatches = 0;
@@ -429,7 +443,7 @@ bool LoopClosing::ComputeSim3()
 			}
 			else {
 		//		bMatch = true;
-
+/*
 			    std::vector<MapPoint*> currenkKFPoints = mpCurrentKF->GetMapPointMatches();
 
 				for (int p=0; p<vvpMapPointMatches[i].size(); p++) {
@@ -449,6 +463,7 @@ bool LoopClosing::ComputeSim3()
 					}
 
 				}
+				*/
 				Sim3Solver* pSolver = new Sim3Solver(mpCurrentKF,pKF,vvpMapPointMatches[i],mbFixScale);
 				pSolver->SetRansacParameters(0.99,20,300);
 				vpSim3Solvers[i] = pSolver;
@@ -543,7 +558,8 @@ bool LoopClosing::ComputeSim3()
 
     // Perform alternatively RANSAC iterations for each candidate
     // until one is succesful or all fail
-    while(nCandidates>0 && !bMatch)
+ //   while(nCandidates>0 && !bMatch)
+    if(nCandidates>0 && !bMatch)
     {
         for(int i=0; i<nInitialCandidates; i++)
         {
@@ -561,11 +577,11 @@ bool LoopClosing::ComputeSim3()
             cv::Mat Scm  = pSolver->iterate(5,bNoMore,vbInliers,nInliers);
 
             // If Ransac reachs max. iterations discard keyframe
-            if(bNoMore)
-            {
+       //     if(bNoMore)
+       //     {
                 vbDiscarded[i]=true;
                 nCandidates--;
-            }
+      //      }
 
             // If RANSAC returns a Sim3, perform a guided matching and optimize with all correspondences
             if(!Scm.empty())
@@ -580,7 +596,7 @@ bool LoopClosing::ComputeSim3()
                 cv::Mat R = pSolver->GetEstimatedRotation();
                 cv::Mat t = pSolver->GetEstimatedTranslation();
                 const float s = pSolver->GetEstimatedScale();
-                matcher.SearchBySim3(mpCurrentKF,pKF,vpMapPointMatches,s,R,t,7.5);
+      //          matcher.SearchBySim3(mpCurrentKF,pKF,vpMapPointMatches,s,R,t,7.5);
 
                 g2o::Sim3 gScm(Converter::toMatrix3d(R),Converter::toVector3d(t),s);
                 const int nInliers = Optimizer::OptimizeSim3(mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
@@ -696,7 +712,7 @@ void LoopClosing::CorrectLoop()
     }
 
     // Get Map Mutex
-    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+    unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
 
     // Avoid new keyframes are inserted while correcting the loop
     mpLocalMapper->RequestStop();
@@ -706,6 +722,9 @@ void LoopClosing::CorrectLoop()
     {
         usleep(1000);
     }
+
+    // Get Map Mutex
+    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
     // Ensure current keyframe is updated
     mpCurrentKF->UpdateConnections();
@@ -843,18 +862,18 @@ void LoopClosing::CorrectLoop()
     }
 
     // Optimize graph
-//    Optimizer::OptimizeEssentialGraph(mpMap, mpMatchedKF, mpCurrentKF, NonCorrectedSim3, CorrectedSim3, LoopConnections, mbFixScale);
+    Optimizer::OptimizeEssentialGraph(mpMap, mpMatchedKF, mpCurrentKF, NonCorrectedSim3, CorrectedSim3, LoopConnections, mbFixScale);
 
     // Add loop edge
     mpMatchedKF->AddLoopEdge(mpCurrentKF);
     mpCurrentKF->AddLoopEdge(mpMatchedKF);
-/*
+
     // Launch a new thread to perform Global Bundle Adjustment
     mbRunningGBA = true;
     mbFinishedGBA = false;
     mbStopGBA = false;
     mpThreadGBA = new thread(&LoopClosing::RunGlobalBundleAdjustment,this,mpCurrentKF->mnId);
-*/
+
     // Loop closed. Release Local Mapping.
     mpLocalMapper->Release();    
 
@@ -943,7 +962,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
             cout << "Updating map ..." << endl;
 
             // Get Map Mutex
-            unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+            unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
 
             mpLocalMapper->RequestStop();
             // Wait until Local Mapping has effectively stopped
@@ -952,6 +971,9 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
             {
                 usleep(1000);
             }
+
+            // Get Map Mutex
+            unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
             // Correct keyframes starting at map first keyframe
             list<KeyFrame*> lpKFtoCheck(mpMap->mvpKeyFrameOrigins.begin(),mpMap->mvpKeyFrameOrigins.end());

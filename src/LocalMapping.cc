@@ -57,7 +57,7 @@ void LocalMapping::Run()
         // Check if there are keyframes in the queue
         if(CheckNewKeyFrames())
         {
-        	MainProcessing();
+   //     	MainProcessing();
         }
         else if(Stop())
         {
@@ -92,24 +92,26 @@ void LocalMapping::MainProcessing(){
     MapPointCulling();
 
     // Triangulate new MapPoints
-//           CreateNewMapPoints();
+           CreateNewMapPoints();
 
-    if(!CheckNewKeyFrames())
+ //   if(!CheckNewKeyFrames())
     {
         // Find more matches in neighbor keyframes and fuse point duplications
-//               SearchInNeighbors();
+               SearchInNeighbors();
     }
 
     mbAbortBA = false;
 
-    if(!CheckNewKeyFrames() && !stopRequested())
+    std::cout<<"LocalMapping "<<mpCurrentKeyFrame->mnFrameId<<std::endl;
+
+  //  if(!CheckNewKeyFrames() && !stopRequested())
     {
         // Local BA
-//              if(mpMap->KeyFramesInMap()>2)
-//                  Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
+              if(mpMap->KeyFramesInMap()>2)
+                  Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
 
         // Check redundant local Keyframes
-//              KeyFrameCulling();
+              KeyFrameCulling();
     }
 
     mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);

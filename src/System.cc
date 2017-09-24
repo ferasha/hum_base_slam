@@ -62,7 +62,8 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     std::cout<<"nImages "<<nImages<<std::endl;
 
     //Load ORB Vocabulary
-    cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
+//    cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
+    cout << endl << "Loading..." << endl;
 
     mpVocabulary = new ORBVocabulary();
 
@@ -92,11 +93,11 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
     //Initialize the Local Mapping thread and launch
     mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
-    mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run,mpLocalMapper);
+//    mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run,mpLocalMapper);
 
     //Initialize the Loop Closing thread and launch
     mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, mSensor!=MONOCULAR, strSettingsFile);
-    mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
+//    mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
 
     //Initialize the Viewer thread and launch
@@ -273,6 +274,10 @@ void System::Reset()
 void System::Shutdown()
 {
     mpLocalMapper->RequestFinish();
+
+    while(!mpLocalMapper->isFinished())
+    	usleep(3000);
+
     mpLoopCloser->RequestFinish();
     mpViewer->RequestFinish();
 

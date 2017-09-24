@@ -56,7 +56,7 @@ DepthMapFactor: 1000.0
 useORB: 0
 
 #nImages: 2745
-nImages: 200
+nImages: 360
 
 max_inlier_error: 0.09
 

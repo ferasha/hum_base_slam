@@ -61,6 +61,8 @@ public:
 
     std::mutex mMutexMapUpdate;
 
+    std::mutex mMutexLCTracking;
+
     // This avoid that two points are created simultaneously in separate threads (id conflict)
     std::mutex mMutexPointCreation;
 

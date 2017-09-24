@@ -67,17 +67,17 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
             MapPoint* pMP2 = vpMatched12[i1];
 
             if(!pMP1) {
-            	std::cout<<"this shouldn't happen 1"<<std::endl;
+        //    	std::cout<<"this shouldn't happen 1"<<std::endl;
             	continue;
             }
 
             if(pMP1->isBad()){
-            	std::cout<<"this shouldn't happen 2"<<std::endl;
+        //    	std::cout<<"this shouldn't happen 2"<<std::endl;
             	continue;
             }
 
             if(pMP2->isBad()){
-            	std::cout<<"this shouldn't happen 3"<<std::endl;
+       //     	std::cout<<"this shouldn't happen 3"<<std::endl;
             	continue;
             }
 
@@ -157,7 +157,7 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
 
     if(N<mRansacMinInliers)
     {
-    	std::cout<<"herree"<<std::endl;
+    	std::cout<<"herree "<<N<<std::endl;
         bNoMore = true;
         return cv::Mat();
     }
@@ -177,6 +177,7 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
 
         vAvailableIndices = mvAllIndices;
 
+        if (nCurrentIterations > 0) {
         // Get min set of points
         for(short i = 0; i < 3; ++i)
         {
@@ -190,6 +191,16 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
             vAvailableIndices[randi] = vAvailableIndices.back();
             vAvailableIndices.pop_back();
         }
+        }
+        else {
+            for(short i = 0; i < vAvailableIndices.size(); ++i)
+            {
+                int idx = vAvailableIndices[i];
+                mvX3Dc1[idx].copyTo(P3Dc1i.col(i));
+                mvX3Dc2[idx].copyTo(P3Dc2i.col(i));
+            }
+
+        }
 
         ComputeSim3(P3Dc1i,P3Dc2i);
 
@@ -198,7 +209,9 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
 
         CheckInliers();
 
-        std::cout<<nCurrentIterations<<" mnInliersi "<<mnInliersi<<std::endl;
+        float inlier_perc = mnInliersi*1.0/N;
+        std::cout<<nCurrentIterations<<" mnInliersi "<<mnInliersi<<"/ "<<mvpMapPoints1.size()
+        		<<": "<<inlier_perc<<std::endl;
 
         if(mnInliersi>=mnBestInliers)
         {
@@ -208,8 +221,8 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
             mBestRotation = mR12i.clone();
             mBestTranslation = mt12i.clone();
             mBestScale = ms12i;
-/*
-            if(mnInliersi>mRansacMinInliers)
+
+            if(mnInliersi>mRansacMinInliers && inlier_perc > 0.5)
             {
                 nInliers = mnInliersi;
                 for(int i=0; i<N; i++)
@@ -217,10 +230,10 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
                         vbInliers[mvnIndices1[i]] = true;
                 return mBestT12;
             }
-*/
+
         }
     }
-
+/*
     if(mnBestInliers>mRansacMinInliers)
     {
         nInliers = mnBestInliers;
@@ -229,7 +242,7 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
                 vbInliers[mvnIndices1[i]] = true;
         return mBestT12;
     }
-
+*/
     if(mnIterations>=mRansacMaxIts)
         bNoMore=true;
 
@@ -383,8 +396,8 @@ void Sim3Solver::CheckInliers()
         const float err1 = dist1.dot(dist1);
         const float err2 = dist2.dot(dist2);
 
-        std::cout<<i<<" err1 "<<err1<<" mvnMaxError1[i] "<<mvnMaxError1[i]<<
-        		" err2 "<<err2<<" mvnMaxError2[i] "<<mvnMaxError2[i]<<std::endl;
+//        std::cout<<i<<" err1 "<<err1<<" mvnMaxError1[i] "<<mvnMaxError1[i]<<
+//        		" err2 "<<err2<<" mvnMaxError2[i] "<<mvnMaxError2[i]<<std::endl;
 
         if(err1<mvnMaxError1[i] && err2<mvnMaxError2[i])
         {

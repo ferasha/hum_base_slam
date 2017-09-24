@@ -285,6 +285,8 @@ void Tracking::Track()
 
     mLastProcessedState=mState;
 
+    unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
+
     // Get Map Mutex -> Map cannot be changed
     unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
@@ -441,8 +443,8 @@ void Tracking::Track()
             mlpTemporalPoints.clear();
 
             // Check if we need to insert a new keyframe
-//            if(NeedNewKeyFrame())
-//            if (mCurrentFrame.mnId>=mnLastKeyFrameId+30)
+            if(NeedNewKeyFrame())
+ //           if (mCurrentFrame.mnId>=mnLastKeyFrameId+10)
                 CreateNewKeyFrame();
 
             // We allow points with high innovation (considererd outliers by the Huber Function)
@@ -589,7 +591,32 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
 
 //    mCurrentFrame.SetPose(transf*olderFrame.mTcw);
 //    bool po_result = Optimizer::PoseOptimization(&mCurrentFrame, 2.0, avg_chi2, true);
-    bool po_result = Optimizer::PoseOptimization(&mCurrentFrame);
+    int po_result = Optimizer::PoseOptimization(&mCurrentFrame);
+
+    // Discard outliers
+     nmatchesMap = 0;
+    for(int i =0; i<mCurrentFrame.N; i++)
+    {
+        if(mCurrentFrame.mvpMapPoints[i])
+        {
+            if(mCurrentFrame.mvbOutlier[i])
+            {
+                MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
+
+                mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
+                mCurrentFrame.mvbOutlier[i]=false;
+                pMP->mbTrackInView = false;
+                pMP->mnLastFrameSeen = mCurrentFrame.mnId;
+            }
+            else if(mCurrentFrame.mvpMapPoints[i]->Observations()>0)
+                nmatchesMap++;
+        }
+    }
+
+    if (nmatchesMap < 10) {
+    	std::cout<<"nmatchesMap less than 10: "<<nmatchesMap<<std::endl;
+    }
+
 
     cv::Mat LastTwc = cv::Mat::eye(4,4,CV_32F);
     olderFrame.GetRotationInverse().copyTo(LastTwc.rowRange(0,3).colRange(0,3));
@@ -792,7 +819,7 @@ void Tracking::UpdateFrame(Frame& frame)
 
             frame.mvpMapPoints[i]=pNewMP;
 
-     //       mlpTemporalPoints.push_back(pNewMP);
+            mlpTemporalPoints.push_back(pNewMP);
             nPoints++;
         }
         else
@@ -800,7 +827,7 @@ void Tracking::UpdateFrame(Frame& frame)
             nPoints++;
         }
 
-        if(vDepthIdx[j].first>mThDepth && nPoints>1000)
+        if(vDepthIdx[j].first>mThDepth && nPoints>100)
             break;
     }
 }
@@ -1318,7 +1345,7 @@ bool Tracking::TrackLocalMap()
     SearchLocalPoints();
 
     // Optimize Pose
- //   Optimizer::PoseOptimization(&mCurrentFrame);
+    Optimizer::PoseOptimization(&mCurrentFrame);
     mnMatchesInliers = 0;
 
     // Update MapPoints Statistics
@@ -1342,7 +1369,7 @@ bool Tracking::TrackLocalMap()
 
         }
     }
-/*
+
     cv::Mat pose1 = mCurrentFrame.mTcw;
     cv::Mat pose2 = mLastFrame.mTcw;
 
@@ -1363,7 +1390,7 @@ bool Tracking::TrackLocalMap()
     	std::cout<<"large tracklocalmap indiv trans"<<std::endl;
     }
 
-*/
+
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
 //    if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50) {
@@ -1408,6 +1435,8 @@ bool Tracking::NeedNewKeyFrame()
 
     // Local Mapping accept keyframes?
     bool bLocalMappingIdle = mpLocalMapper->AcceptKeyFrames();
+
+    std::cout<<"here "<<bLocalMappingIdle<<std::endl;
 
     // Check how many "close" points are being tracked and how many could be potentially created.
     int nNonTrackedClose = 0;
@@ -1554,6 +1583,8 @@ void Tracking::CreateNewKeyFrame()
 
     mpLocalMapper->SetNotStop(false);
 
+ //   mpLocalMapper->MainProcessing();
+
     mnLastKeyFrameId = mCurrentFrame.mnId;
     mpLastKeyFrame = pKF;
 }
@@ -1596,7 +1627,7 @@ void Tracking::SearchLocalPoints()
             nToMatch++;
         }
     }
-/*
+
     if(nToMatch>0)
     {
         ORBmatcher matcher(0.8);
@@ -1608,7 +1639,7 @@ void Tracking::SearchLocalPoints()
             th=5;
         matcher.SearchByProjection(mCurrentFrame,mvpLocalMapPoints,th);
     }
-*/
+
 }
 
 void Tracking::UpdateLocalMap()
