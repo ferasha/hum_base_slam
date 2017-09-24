@@ -52,7 +52,9 @@ public:
     Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
     // Constructor for RGB-D cameras.
-    Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,
+    		ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth,
+    	 cv::Ptr<cv::DescriptorExtractor> new_extractor, bool useORB, cv::Mat& mask, cv::Ptr<cv::FeatureDetector> new_detector);
 
     // Constructor for Monocular cameras.
     Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
@@ -99,6 +101,7 @@ public:
     cv::Mat UnprojectStereo(const int &i, bool inWorld=true);
 
     void keepKPvalidDepth(const cv::Mat& imDepth, cv::Mat& desc);
+    void keepKPvalidDepth(const cv::Mat& imDepth);
 
     vector<MapPoint*> GetMapPointMatches();
 
@@ -178,8 +181,6 @@ public:
     // Reference Keyframe.
     KeyFrame* mpReferenceKF;
 
-    cv::Mat mTRelative;
-
     // Scale pyramid info.
     int mnScaleLevels;
     float mfScaleFactor;
@@ -196,6 +197,12 @@ public:
     static float mnMaxY;
 
     static bool mbInitialComputations;
+
+    cv::Mat mTRelative;
+    cv::Ptr<cv::DescriptorExtractor> extractor_;
+    bool mbORB;
+    cv::Mat mdepthMask;
+    cv::Ptr<cv::FeatureDetector> detector_;
 
 private:
     // Undistort keypoints given OpenCV distortion parameters.

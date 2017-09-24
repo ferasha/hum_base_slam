@@ -37,6 +37,10 @@
 #include "Initializer.h"
 #include "MapDrawer.h"
 #include "System.h"
+#include "openfabmap2/cameraFrame.h"
+#include "openfabmap2/new_desc.h"
+#include "feature_adjuster.h"
+
 #include "Ransac.h"
 
 #include <mutex>
@@ -164,6 +168,10 @@ protected:
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;
     ORBextractor* mpIniORBextractor;
 
+    //New Desc
+    cv::Ptr<cv::DescriptorExtractor> extractor_;
+    cv::Ptr<cv::FeatureDetector> detector_;
+
     //BoW
     ORBVocabulary* mpORBVocabulary;
     KeyFrameDatabase* mpKeyFrameDB;
@@ -221,12 +229,17 @@ protected:
     //Color order (true RGB, false BGR, ignored if grayscale)
     bool mbRGB;
 
+    //use orb extractor
+    bool mbORB;
+
     double max_inlier_error;
     int min_inliers_threshold;
     double optimization_max_error;
     int ransac_iterations;
 
     list<MapPoint*> mlpTemporalPoints;
+
+    cv::Mat mZero;
 };
 
 } //namespace ORB_SLAM

@@ -62,6 +62,8 @@ src/KeyFrameDatabase.cc
 src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
+src/aorb.cc
+src/feature_adjuster.cc
 src/FabmapLC.cc
 )
 

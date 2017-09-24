@@ -108,6 +108,16 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     else
         cout << "- color order: BGR (ignored if grayscale)" << endl;
 
+
+    int nUseORB = fSettings["useORB"];
+    mbORB = nUseORB;
+    cout << endl << "Descriptor: ";
+    if (mbORB)
+    	cout << "ORB" << endl;
+    else
+    	cout << "New descriptor" << endl;
+
+
     max_inlier_error = fSettings["max_inlier_error"];
     std::cout<<"max_inlier_error "<<max_inlier_error<<std::endl;
 
@@ -127,6 +137,13 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     int nLevels = fSettings["ORBextractor.nLevels"];
     int fIniThFAST = fSettings["ORBextractor.iniThFAST"];
     int fMinThFAST = fSettings["ORBextractor.minThFAST"];
+
+    detector_ = createDetector("ORB");
+
+    if (mbORB)
+    	extractor_ = createDescriptorExtractor("ORB");
+    else
+    	extractor_ = new NewDesc();
 
     mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
@@ -218,8 +235,11 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
 
 cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp)
 {
+	cv::Mat color_img;
+	imRGB.copyTo(color_img);
+
     mImGray = imRGB;
-    cv::Mat imDepth = imD;
+//    cv::Mat imDepth = imD;
 
     if(mImGray.channels()==3)
     {
@@ -236,10 +256,33 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
             cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
     }
 
-    if((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
-        imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
+//    if((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
+//        imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
 
-    mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    if (mZero.empty())
+    	mZero = cv::Mat::zeros(imD.size(), imD.type());
+
+    cv::Mat imDepth;// = imD;
+	cv::Mat mask;
+	if(imD.type() == CV_32F) {
+		imDepth = cv::Mat::zeros(imD.size(), imD.type());
+		mask = (imD == imD);
+		imD.copyTo(imDepth, mask);
+		cv::cvtColor(color_img, color_img, CV_BGR2RGB);
+	}
+	else {
+//		std::cout<<"type "<<imD.type()<<std::endl;
+		imD.convertTo(imDepth,CV_32F,mDepthMapFactor);
+		mask = (imD != mZero);
+	}
+
+    if (!mbORB) {
+    	cameraFrame frame(imDepth, color_img);
+		static_cast<cv::Ptr<NewDesc> >(extractor_)->currentFrame = frame;
+    }
+
+    mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,
+    		extractor_, mbORB, mask, detector_);
 
     Track();
 

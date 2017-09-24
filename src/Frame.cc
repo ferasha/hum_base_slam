@@ -118,9 +118,22 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     AssignFeaturesToGrid();
 }
 
-Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
+struct KeypointResponseGreater
+{
+    inline bool operator()(const cv::KeyPoint& kp1, const cv::KeyPoint& kp2) const
+    {
+        return kp1.response > kp2.response;
+    }
+};
+
+
+Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,
+		ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth,
+		cv::Ptr<cv::DescriptorExtractor> new_extractor,bool useORB, cv::Mat& mask,
+		cv::Ptr<cv::FeatureDetector> new_detector)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
-     mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+     mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth), extractor_(new_extractor),
+     mbORB(useORB), mdepthMask(mask.clone()), detector_(new_detector)
 //,mImRGB(imGray.clone())
 {
     // Frame ID
@@ -137,12 +150,40 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 
     // ORB extraction
 //    ExtractORB(0,imGray);
-
+/*
     cv::Mat temp;
     (*mpORBextractorLeft)(imGray,cv::Mat(),mvKeys,temp);
 //    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" temp.rows "<<temp.rows<<std::endl;
     keepKPvalidDepth(imDepth, temp);
 //    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" mDescriptors.rows "<<mDescriptors.rows<<std::endl;
+*/
+/*
+    detector_->detect( imGray, mvKeys, mdepthMask);
+    std::cout<<"after detect mvKeys.size() "<<mvKeys.size()<<std::endl;
+
+    keepKPvalidDepth(imDepth);
+	std::cout<<"after removing no depth "<<mvKeys.size()<<std::endl;
+
+    cv::KeyPointsFilter::runByImageBorder( mvKeys, imGray.size(), 48/2 + 4 );
+    std::cout<<"after runByImageBorder "<<mvKeys.size()<<std::endl;
+
+//    std::nth_element(mvKeys.begin(), mvKeys.begin()+600, mvKeys.end(), KeypointResponseGreater());
+    extractor_->compute(imGray, mvKeys, mDescriptors);
+    std::cout<<"after extract "<<mvKeys.size()<<std::endl;
+*/
+
+//    detector_->detect( imGray, mvKeys);
+//    std::cout<<"after detect mvKeys.size() "<<mvKeys.size()<<std::endl;
+
+    cv::Mat temp;
+    (*mpORBextractorLeft)(imGray,cv::Mat(),mvKeys,temp);
+
+    cv::Mat temp2;
+    extractor_->compute(imGray, mvKeys, temp2);
+    std::cout<<"after extract "<<mvKeys.size()<<std::endl;
+
+    keepKPvalidDepth(imDepth, temp2);
+    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" mDescriptors.rows "<<mDescriptors.rows<<std::endl;
 
     /*
     double min, max;
@@ -184,8 +225,38 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     AssignFeaturesToGrid();
 }
 
+void Frame::keepKPvalidDepth(const cv::Mat& imDepth)
+{
+  unsigned int i = 0;
+  bool erase = false;
+  while(i < mvKeys.size())
+  {
+	erase = false;
+    float d = imDepth.at<float>(cvRound(mvKeys[i].pt.y), cvRound(mvKeys[i].pt.x));
+    if(std::isnan(d) || d <=0)
+    {
+      erase = true;
+    }
+    else {
+		for (unsigned int j=0; j<i; j++){
+			if (mvKeys[i].pt.x == mvKeys[j].pt.x && mvKeys[i].pt.y == mvKeys[j].pt.y)
+			{
+			  erase = true;
+			  break;
+			}
+		}
+    }
+    if (erase)
+        mvKeys.erase(mvKeys.begin()+i);
+    else
+    	i++;
+  }
+}
+
 void Frame::keepKPvalidDepth(const cv::Mat& imDepth, cv::Mat& desc)
 {
+
+	mDescriptors = cv::Mat();
   unsigned int i = 0;
   int oi=0;
   bool erase = false;
