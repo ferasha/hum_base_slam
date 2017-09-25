@@ -222,7 +222,8 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
             mBestTranslation = mt12i.clone();
             mBestScale = ms12i;
 
-            if(mnInliersi>mRansacMinInliers && inlier_perc > 0.5)
+//            if(mnInliersi>mRansacMinInliers && inlier_perc > 0.5)
+            if(mnInliersi>mRansacMinInliers)
             {
                 nInliers = mnInliersi;
                 for(int i=0; i<N; i++)

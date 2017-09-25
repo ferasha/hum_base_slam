@@ -150,13 +150,13 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 
     // ORB extraction
 //    ExtractORB(0,imGray);
-/*
+
     cv::Mat temp;
     (*mpORBextractorLeft)(imGray,cv::Mat(),mvKeys,temp);
 //    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" temp.rows "<<temp.rows<<std::endl;
     keepKPvalidDepth(imDepth, temp);
 //    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" mDescriptors.rows "<<mDescriptors.rows<<std::endl;
-*/
+
 /*
     detector_->detect( imGray, mvKeys, mdepthMask);
     std::cout<<"after detect mvKeys.size() "<<mvKeys.size()<<std::endl;
@@ -174,7 +174,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 
 //    detector_->detect( imGray, mvKeys);
 //    std::cout<<"after detect mvKeys.size() "<<mvKeys.size()<<std::endl;
-
+/*
     cv::Mat temp;
     (*mpORBextractorLeft)(imGray,cv::Mat(),mvKeys,temp);
 
@@ -184,7 +184,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 
     keepKPvalidDepth(imDepth, temp2);
     std::cout<<"mvKeys.size() "<<mvKeys.size()<<" mDescriptors.rows "<<mDescriptors.rows<<std::endl;
-
+*/
     /*
     double min, max;
     cv::minMaxLoc(imDepth, &min, &max);

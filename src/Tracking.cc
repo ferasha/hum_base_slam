@@ -476,7 +476,7 @@ void Tracking::Track()
                         mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
                     }
             }
-
+/*
             // Delete temporal MapPoints
             for(list<MapPoint*>::iterator lit = mlpTemporalPoints.begin(), lend =  mlpTemporalPoints.end(); lit!=lend; lit++)
             {
@@ -484,9 +484,9 @@ void Tracking::Track()
                 delete pMP;
             }
             mlpTemporalPoints.clear();
-
+*/
             // Check if we need to insert a new keyframe
-            if(NeedNewKeyFrame())
+ //           if(NeedNewKeyFrame())
  //           if (mCurrentFrame.mnId>=mnLastKeyFrameId+10)
                 CreateNewKeyFrame();
 
@@ -717,7 +717,7 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
         	track_res = false;
     	else if (da>max_dist || db>max_dist || dc>max_dist || diff_norm >max_dist_norm) {
     		std::cout<<"large indiv trans"<<std::endl;
-    		if (match_perc < 0.6)
+    		if (match_perc < 0.7)
     			track_res = false;
     	}
 
@@ -862,7 +862,7 @@ void Tracking::UpdateFrame(Frame& frame)
 
             frame.mvpMapPoints[i]=pNewMP;
 
-            mlpTemporalPoints.push_back(pNewMP);
+ //           mlpTemporalPoints.push_back(pNewMP);
             nPoints++;
         }
         else
@@ -1299,7 +1299,7 @@ void Tracking::UpdateLastFrame()
 
             mLastFrame.mvpMapPoints[i]=pNewMP;
 
-            mlpTemporalPoints.push_back(pNewMP);
+  //          mlpTemporalPoints.push_back(pNewMP);
             nPoints++;
         }
         else
@@ -1626,7 +1626,7 @@ void Tracking::CreateNewKeyFrame()
 
     mpLocalMapper->SetNotStop(false);
 
- //   mpLocalMapper->MainProcessing();
+    mpLocalMapper->MainProcessing();
 
     mnLastKeyFrameId = mCurrentFrame.mnId;
     mpLastKeyFrame = pKF;

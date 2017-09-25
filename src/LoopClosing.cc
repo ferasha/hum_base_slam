@@ -135,14 +135,17 @@ bool LoopClosing::DetectLoopFabmap()
         mpCurrentKF->SetErase();
         return false;
     }
+    
     else {
     	if ((mpCurrentKF->mnFrameId - vpCandidateKFs[0]->mnFrameId) < 1000 || mpCurrentKF->mnFrameId < 2000){
-            mpKeyFrameDB->add(mpCurrentKF);
+//  	if ((mpCurrentKF->mnFrameId - vpCandidateKFs[0]->mnFrameId) < 100){  
+          mpKeyFrameDB->add(mpCurrentKF);
             mvConsistentGroups.clear();
             mpCurrentKF->SetErase();
             return false;
     	}
     }
+    
 
     mvpEnoughConsistentCandidates = vpCandidateKFs;
     return true;
@@ -335,7 +338,7 @@ bool LoopClosing::ComputeSim3()
     cv::Mat old_pose = mpCurrentKF->GetPose().clone();
 
     unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
-
+/*
     std::cout<<"pause mapping"<<std::endl;
     mpLocalMapper->RequestStop();
 
@@ -344,7 +347,7 @@ bool LoopClosing::ComputeSim3()
     {
         usleep(1000);
     }
-
+*/
     // Get Map Mutex
     unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
@@ -357,7 +360,7 @@ bool LoopClosing::ComputeSim3()
 
         if ((mpCurrentKF->mnFrameId - pKF->mnFrameId) < 1000 || mpCurrentKF->mnFrameId < 2000) {
         	std::cout<<"lc pkf "<<pKF->mnId<<"("<<pKF->mnFrameId<<") mpCurrentKF "<<mpCurrentKF->mnId<<"("<<mpCurrentKF->mnFrameId<<")"<<std::endl;
-        	continue;
+    //    	continue;
         } else {
         	std::cout<<"lc larger than 1000"<<std::endl;
         }
@@ -618,7 +621,7 @@ bool LoopClosing::ComputeSim3()
         }
     }
 
-    mpLocalMapper->Release();
+ //   mpLocalMapper->Release();
 
     if(!bMatch)
     {
@@ -713,7 +716,7 @@ void LoopClosing::CorrectLoop()
 
     // Get Map Mutex
     unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
-
+/*
     // Avoid new keyframes are inserted while correcting the loop
     mpLocalMapper->RequestStop();
 
@@ -722,7 +725,7 @@ void LoopClosing::CorrectLoop()
     {
         usleep(1000);
     }
-
+*/
     // Get Map Mutex
     unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
@@ -875,7 +878,7 @@ void LoopClosing::CorrectLoop()
     mpThreadGBA = new thread(&LoopClosing::RunGlobalBundleAdjustment,this,mpCurrentKF->mnId);
 
     // Loop closed. Release Local Mapping.
-    mpLocalMapper->Release();    
+ //   mpLocalMapper->Release();
 
     cout << "Loop Closed!" << endl;
 
@@ -963,7 +966,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
 
             // Get Map Mutex
             unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
-
+/*
             mpLocalMapper->RequestStop();
             // Wait until Local Mapping has effectively stopped
 
@@ -971,7 +974,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
             {
                 usleep(1000);
             }
-
+*/
             // Get Map Mutex
             unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
@@ -1038,7 +1041,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
                 }
             }
 
-            mpLocalMapper->Release();
+  //          mpLocalMapper->Release();
 
             cout << "Map updated!" << endl;
         }
