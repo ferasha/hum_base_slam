@@ -175,6 +175,11 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
             mDepthMapFactor = 1.0f/mDepthMapFactor;
     }
 
+    mbadsequentialMain = 0;
+    mbadsequential = 0;
+    mbadlocalmap = 0;
+
+
 }
 
 void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
@@ -372,6 +377,7 @@ void Tracking::Track()
                 	std::cout<<"mnLastRelocFrameId "<<mnLastRelocFrameId<<std::endl;
 //                	UpdateLastFrame();
                    	bOK = TrackLastFrameRansac(mLastFrame, nmatchesM, try_again);
+                    bOKRansac = bOK;
                 }
                 else
                 {
@@ -379,6 +385,7 @@ void Tracking::Track()
  //                   UpdateLastFrame();
                     UpdateFrame(mLastFrame);
                 	bOK = TrackLastFrameRansac(mLastFrame, nmatchesM, try_again);
+                    bOKRansac = bOK;
                 }
             }
             else
@@ -412,6 +419,7 @@ void Tracking::Track()
         {
             if(bOK) {
                 bOK = TrackLocalMap();
+                bOKMap = bOK;
             }
             if(!bOK){
             	for (std::list<Frame>::reverse_iterator it=potentialRansacKFs.rbegin();
@@ -430,6 +438,17 @@ void Tracking::Track()
                          if (bOK)
                         	 break;
                 	}
+            }
+
+            if (!bOKRansac) {
+            	mbadsequentialMain++;
+                std::cout<<"TrackSequential-Main not ok!"<<std::endl;
+            }
+
+            if (!bOKMap)
+            {
+         	   mbadlocalmap++;
+         	   std::cout<<"TrackLocalMap not OK"<<std::endl;
             }
         }
         else
@@ -545,6 +564,8 @@ void Tracking::Track()
 
     std::cout<<mCurrentFrame.mnId<<"("<<mCurrentFrame.mpReferenceKF->mnFrameId<<","
     		<<mCurrentFrame.mpReferenceKF->mnId<<") "<<std::endl;
+
+    mpLocalMapper->MainProcessing();
 
 }
 
@@ -1431,6 +1452,7 @@ bool Tracking::TrackLocalMap()
 
     if (da>max_dist || db>max_dist || dc>max_dist || diff_norm >max_dist_norm) {
     	std::cout<<"large tracklocalmap indiv trans"<<std::endl;
+    	return false;
     }
 
 
@@ -1626,7 +1648,7 @@ void Tracking::CreateNewKeyFrame()
 
     mpLocalMapper->SetNotStop(false);
 
-    mpLocalMapper->MainProcessing();
+//    mpLocalMapper->MainProcessing();
 
     mnLastKeyFrameId = mCurrentFrame.mnId;
     mpLastKeyFrame = pKF;

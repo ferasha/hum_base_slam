@@ -248,6 +248,25 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 						  " loop_closure? "<<loop_closure
 				);
 
+/*
+				for (int i=matches.size()-1; i>0, i > matches.size()-11; i--){
+					bool l = false;
+					int m_id = -1;
+					int m_frameid = -1;
+					of2::IMatch m = matches[i];
+					if (m.match >= 0.98) {
+						l = true;
+						m_id = location_node_map[m.imgIdx];
+						KeyFrame* matched_KF = KFmap[match_node_id];
+						m_frameid = matched_KF->mnFrameId;
+					}
+				ROS_INFO_STREAM("image_number "<< KF->mnFrameId<<" KF_Id "<<KF->mnId<<
+					       " toLocation " << m.imgIdx << " (KF id "<<m_id<<", frame_id "<<m_frameid<<")" <<
+						  " Match "<< m.match <<
+						  " loop_closure? "<<l
+				);
+				}
+*/
 		//	}
 
 		}
@@ -270,8 +289,29 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 			else
 				std::cout<<"consecutive KFs, will discard it "<<KF->mnId<<"->"<<matched_KF->mnId<<std::endl;
 		}
-		else
-			std::cout<<"matched with bad KF, will discard it "<<KF->mnId<<"->"<<matched_KF->mnId<<std::endl;
+		else {
+			std::cout<<"matched with bad KF, will discard it "<<KF->mnId<<"->"<<matched_KF->mnId;
+			bool found = false;
+			int new_id = match_node_id;
+			for (int i=1; i<=4; i++){
+				new_id = match_node_id - i;
+				if (new_id >= 0 && !KFmap[new_id]->isBad()) {
+					vpCandidateKFs.push_back(KFmap[new_id]);
+					std::cout<<" adding prev KF "<<new_id;
+					break;
+				}
+				else {
+					new_id = match_node_id + i;
+					if (!KFmap[new_id]->isBad()) {
+						vpCandidateKFs.push_back(KFmap[new_id]);
+						std::cout<<" adding next KF "<<new_id;
+						break;
+					}
+				}
+			}
+
+			std::cout<<std::endl;
+		}
 	}
 	return vpCandidateKFs;
 }

@@ -55,6 +55,22 @@ void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
     mpLocalMapper=pLocalMapper;
 }
 
+void LoopClosing::MainLCLoop(){
+
+    if(CheckNewKeyFrames())
+    {
+		if (DetectLoopFabmap())
+		{
+		   // Compute similarity transformation [sR|t]
+		   // In the stereo/RGBD case s=1
+		   if(ComputeSim3())
+		   {
+			   // Perform loop fusion and pose graph optimization
+			   CorrectLoop();
+		   }
+		}
+    }
+}
 
 void LoopClosing::Run()
 {
@@ -101,7 +117,7 @@ void LoopClosing::Run()
 void LoopClosing::InsertKeyFrame(KeyFrame *pKF)
 {
     unique_lock<mutex> lock(mMutexLoopQueue);
-    if(pKF->mnId!=0)
+//    if(pKF->mnId!=0)
         mlpLoopKeyFrameQueue.push_back(pKF);
 }
 
@@ -337,7 +353,7 @@ bool LoopClosing::ComputeSim3()
 
     cv::Mat old_pose = mpCurrentKF->GetPose().clone();
 
-    unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
+//    unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
 /*
     std::cout<<"pause mapping"<<std::endl;
     mpLocalMapper->RequestStop();
@@ -349,7 +365,7 @@ bool LoopClosing::ComputeSim3()
     }
 */
     // Get Map Mutex
-    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+//    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
     for(int i=0; i<nInitialCandidates; i++)
     {
@@ -441,6 +457,7 @@ bool LoopClosing::ComputeSim3()
 				dist_ratio = dist_ratio - 0.1;
 			}
 			if (nmatches < 20) {
+				std::cout<<"lc few ransac matches "<<nmatches<<std::endl;
 				vbDiscarded[i] = true;
 				continue;
 			}
@@ -599,7 +616,19 @@ bool LoopClosing::ComputeSim3()
                 cv::Mat R = pSolver->GetEstimatedRotation();
                 cv::Mat t = pSolver->GetEstimatedTranslation();
                 const float s = pSolver->GetEstimatedScale();
-      //          matcher.SearchBySim3(mpCurrentKF,pKF,vpMapPointMatches,s,R,t,7.5);
+                matcher.SearchBySim3(mpCurrentKF,pKF,vpMapPointMatches,s,R,t,7.5);
+
+                g2o::Sim3 gScmold(Converter::toMatrix3d(R),Converter::toVector3d(t),s);
+    			cv::Mat old_pose = mpCurrentKF->GetPose();
+    			cv::Mat poseKF = pKF->GetPose();
+                g2o::Sim3 gSmwold(Converter::toMatrix3d(pKF->GetRotation()),Converter::toVector3d(pKF->GetTranslation()),1.0);
+                g2o::Sim3 mg2oScwold = gScmold*gSmwold;
+                cv::Mat poseNew = Converter::toCvMat(mg2oScwold);
+
+    			std::cout<<"poseKF "<<poseKF.at<float>(0,3)<<" "<<poseKF.at<float>(1,3)<<" "<<poseKF.at<float>(2,3)<<std::endl;
+    			std::cout<<"mpCurrentKF old "<<old_pose.at<float>(0,3)<<" "<<old_pose.at<float>(1,3)<<" "<<old_pose.at<float>(2,3)<<std::endl;
+    			std::cout<<"mpCurrentKF new 1 "<<poseNew.at<float>(0,3)<<" "<<poseNew.at<float>(1,3)<<" "<<poseNew.at<float>(2,3)<<std::endl;
+
 
                 g2o::Sim3 gScm(Converter::toMatrix3d(R),Converter::toVector3d(t),s);
                 const int nInliers = Optimizer::OptimizeSim3(mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
@@ -614,9 +643,13 @@ bool LoopClosing::ComputeSim3()
                     mg2oScw = gScm*gSmw;
                     mScw = Converter::toCvMat(mg2oScw);
 
+        			std::cout<<"mpCurrentKF new 2 "<<mScw.at<float>(0,3)<<" "<<mScw.at<float>(1,3)<<" "<<mScw.at<float>(2,3)<<std::endl;
+
                     mvpCurrentMatchedPoints = vpMapPointMatches;
                     break;
                 }
+                else
+                	std::cout<<"few inliers in OptimizeSim3 "<<nInliers<<std::endl;
             }
         }
     }
@@ -715,7 +748,7 @@ void LoopClosing::CorrectLoop()
     }
 
     // Get Map Mutex
-    unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
+//    unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
 /*
     // Avoid new keyframes are inserted while correcting the loop
     mpLocalMapper->RequestStop();
@@ -727,7 +760,7 @@ void LoopClosing::CorrectLoop()
     }
 */
     // Get Map Mutex
-    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+//    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
     // Ensure current keyframe is updated
     mpCurrentKF->UpdateConnections();
@@ -871,12 +904,15 @@ void LoopClosing::CorrectLoop()
     mpMatchedKF->AddLoopEdge(mpCurrentKF);
     mpCurrentKF->AddLoopEdge(mpMatchedKF);
 
+/*
     // Launch a new thread to perform Global Bundle Adjustment
     mbRunningGBA = true;
     mbFinishedGBA = false;
     mbStopGBA = false;
     mpThreadGBA = new thread(&LoopClosing::RunGlobalBundleAdjustment,this,mpCurrentKF->mnId);
+*/
 
+//    RunGlobalBundleAdjustment(mpCurrentKF->mnId);
     // Loop closed. Release Local Mapping.
  //   mpLocalMapper->Release();
 
@@ -965,7 +1001,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
             cout << "Updating map ..." << endl;
 
             // Get Map Mutex
-            unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
+ //           unique_lock<mutex> lockT(mpMap->mMutexLCTracking);
 /*
             mpLocalMapper->RequestStop();
             // Wait until Local Mapping has effectively stopped
@@ -976,7 +1012,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
             }
 */
             // Get Map Mutex
-            unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+ //           unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
             // Correct keyframes starting at map first keyframe
             list<KeyFrame*> lpKFtoCheck(mpMap->mvpKeyFrameOrigins.begin(),mpMap->mvpKeyFrameOrigins.end());

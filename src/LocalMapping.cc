@@ -108,6 +108,8 @@ void LocalMapping::MainProcessing(){
         if(mpMap->KeyFramesInMap()>2)
           Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
 
+        KeyFrameCulling();
+
     }
 
     mbAbortBA = false;
@@ -121,10 +123,11 @@ void LocalMapping::MainProcessing(){
  //                 Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
 
         // Check redundant local Keyframes
-   //           KeyFrameCulling();
+//              KeyFrameCulling();
     }
 
     mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
+    mpLoopCloser->MainLCLoop();
 
 }
 
@@ -713,6 +716,8 @@ void LocalMapping::KeyFrameCulling()
 
         if(nRedundantObservations>0.9*nMPs)
             pKF->SetBadFlag();
+        else
+        	std::cout<<"pKF not bad "<<pKF->mnId<<" ("<<pKF->mnFrameId<<")"<<std::endl;
     }
 }
 

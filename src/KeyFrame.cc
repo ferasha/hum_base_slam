@@ -452,7 +452,7 @@ void KeyFrame::SetErase()
 
 void KeyFrame::SetBadFlag()
 {   
-	std::cout<<"SetBadFlag()"<<std::endl;
+	std::cout<<"SetBadFlag() "<<mnId<<" ("<<mnFrameId<<")"<<std::endl;
     {
         unique_lock<mutex> lock(mMutexConnections);
         if(mnId==0)

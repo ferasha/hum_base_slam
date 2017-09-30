@@ -97,7 +97,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
     //Initialize the Loop Closing thread and launch
     mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, mSensor!=MONOCULAR, strSettingsFile);
-    mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
+//    mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
 
     //Initialize the Viewer thread and launch
@@ -349,6 +349,10 @@ void System::SaveTrajectoryTUM(const string &filename)
     }
     f.close();
     cout << endl << "trajectory saved!" << endl;
+
+    cout<<"mbadsequentialMain "<<mpTracker->mbadsequentialMain<<std::endl;
+    cout<<"mbadlocalmap "<<mpTracker->mbadlocalmap<<std::endl;
+
 }
 
 

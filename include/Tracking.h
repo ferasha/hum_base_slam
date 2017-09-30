@@ -120,6 +120,10 @@ public:
 
     void Reset();
 
+    int mbadsequentialMain;
+    int mbadsequential;
+    int mbadlocalmap;
+
 protected:
 
     // Main tracking function. It is independent of the input sensor.

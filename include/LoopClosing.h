@@ -60,6 +60,8 @@ public:
     // Main function
     void Run();
 
+    void MainLCLoop();
+
     void InsertKeyFrame(KeyFrame *pKF);
 
     void RequestReset();
