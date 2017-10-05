@@ -278,7 +278,7 @@ int Optimizer::PoseOptimization(KeyFrame *pFrame, std::vector<MapPoint*>& vpMapP
     {
     unique_lock<mutex> lock(MapPoint::mGlobalMutex);
 
-    for(int i=0; i<vpMapPoints.size(); i++)
+    for(unsigned int i=0; i<vpMapPoints.size(); i++)
     {
         MapPoint* pMP = vpMapPoints[i];
         if(pMP)

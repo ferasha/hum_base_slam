@@ -98,8 +98,8 @@ unsigned int Ransac<TFrame>::featureMatching(TFrame& last_frame, TFrame& current
 				if (v_matches[i][0].distance < 0.8 * v_matches[i][1].distance && v_matches[i][0].distance >= 0.7 * v_matches[i][1].distance) {
 					matches.push_back(v_matches[i][0]);
 
-					cv::DMatch m1 = v_matches[i][0];
-					cv::DMatch m2 = v_matches[i][1];
+//					cv::DMatch m1 = v_matches[i][0];
+//					cv::DMatch m2 = v_matches[i][1];
 
 //					std::cout<<i<<": "<<
 //							m1.trainIdx<<" "<<

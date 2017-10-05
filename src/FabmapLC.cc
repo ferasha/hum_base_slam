@@ -167,10 +167,11 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 			if (!buffer.empty()) {
 				int n_added = location_node_map.size();
 				KeyFrame* buffer_KF = buffer.front();
-				while ((KF->mnFrameId - buffer_KF->mnFrameId) >= 10)   //so it's not matched with recent frames
+				while ((KF->mnFrameId - buffer_KF->mnFrameId) >= 10)   //this ensure that the keyframe in question is not matched to recent frames (the keyframes are moved from the buffer to fabmap descriptor pool after a while)
 				{
 					if (!(buffer_KF->isBad())) {
 						if ((buffer_KF->mnFrameId -last_matched_frame_id) >= 10) {
+						//this ensures that the fabmap descriptor pool doesn't include consecutive frames (that are most probably similar in appearance) so that a keyframe isn't matched to two or more keyframes
 							last_matched_frame_id = buffer_KF->mnFrameId;
 							computeBowImageDescriptor(buffer_KF, buffer_bow);
 							fabMap->add(buffer_bow);
@@ -291,7 +292,6 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 		}
 		else {
 			std::cout<<"matched with bad KF, will discard it "<<KF->mnId<<"->"<<matched_KF->mnId;
-			bool found = false;
 			int new_id = match_node_id;
 			for (int i=1; i<=4; i++){
 				new_id = match_node_id - i;

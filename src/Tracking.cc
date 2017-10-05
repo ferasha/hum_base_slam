@@ -617,11 +617,12 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     mCurrentFrame.mnInliers = matches_size;
 
     bool track_res = true;
-
+/*
 	std::vector<cv::DMatch> matches;
 	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
 		matches.push_back(it->second);
 	}
+*/
 /*
 	 cv::Mat initial_matches_img;
 	 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
@@ -650,7 +651,7 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     }
 
     else {
-    float avg_chi2;
+//    float avg_chi2;
 //   bool po_result = true;
 
 //    mCurrentFrame.SetPose(transf*olderFrame.mTcw);
@@ -756,12 +757,14 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
 
 //    if (!track_res && matches_size >=4){
         if (matches_size >=4){
+/*
     	std::vector<cv::DMatch> matches, inliers_corr;
     	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
     		matches.push_back(it->second);
     		if (!mCurrentFrame.mvbOutlier[it->first])
     			inliers_corr.push_back(it->second);
     	}
+*/
 /*
 		 cv::Mat initial_matches_img;
 		 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,

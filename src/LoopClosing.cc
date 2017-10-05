@@ -306,17 +306,17 @@ int LoopClosing::RunRansac(cv::Mat& imRGBCurrent, cv::Mat& imRGBOld, vector<MapP
 	ransac.settings.dist_ratio = dist_ratio;
 
     std::map<int, cv::DMatch> query_vec;
-    bool good_tranf = ransac.getTransformation(*pKF, *mpCurrentKF, transf,
+    bool found_tranf = ransac.getTransformation(*pKF, *mpCurrentKF, transf,
     		vpMapPointMatches, nmatches, true, query_vec, match_perc);
-    std::cout<<"loop closure matches "<<nmatches<<std::endl;
+    std::cout<<"found transf "<<found_tranf<<" loop closure matches "<<nmatches<<std::endl;
 
-
+/*
 	std::vector<cv::DMatch> matches;
 	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
 		matches.push_back(it->second);
 	}
 
-/*
+
     cv::Mat initial_matches_img;
     drawMatches(imRGBCurrent, mpCurrentKF->mvKeys, imRGBOld, pKF->mvKeys,
 			 matches, initial_matches_img, cv::Scalar::all(-1), cv::Scalar::all(-1));

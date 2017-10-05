@@ -133,7 +133,7 @@ void Sim3Solver::SetRansacParameters(double probability, int minInliers, int max
     N = mvpMapPoints1.size(); // number of correspondences
 
     mvbInliersi.resize(N);
-
+/*
     // Adjust Parameters according to number of correspondences
     float epsilon = (float)mRansacMinInliers/N;
 
@@ -145,8 +145,8 @@ void Sim3Solver::SetRansacParameters(double probability, int minInliers, int max
     else
         nIterations = ceil(log(1-mRansacProb)/log(1-pow(epsilon,3)));
 
- //   mRansacMaxIts = max(1,min(nIterations,mRansacMaxIts));
-
+    mRansacMaxIts = max(1,min(nIterations,mRansacMaxIts));
+*/
     mRansacMaxIts = 10;
 
     std::cout<<"mRansacMaxIts "<<mRansacMaxIts<<std::endl;
@@ -202,7 +202,7 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
         	P3Dc1i = cv::Mat(3,vAvailableIndices.size(),CV_32F);
         	P3Dc2i = cv::Mat(3,vAvailableIndices.size(),CV_32F);
 
-            for(short i = 0; i < vAvailableIndices.size(); ++i)
+            for(unsigned int i = 0; i < vAvailableIndices.size(); ++i)
             {
                 int idx = vAvailableIndices[i];
                 mvX3Dc1[idx].copyTo(P3Dc1i.col(i));
