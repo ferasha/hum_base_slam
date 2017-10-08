@@ -715,8 +715,9 @@ std::vector<cv::DMatch> Ransac<TFrame>::sample_matches_prefer_by_distance(unsign
     while(sampled_ids.size() < sample_size && matches_with_depth.size() >= sample_size){
       //generate a set of samples. Using a set solves the problem of drawing a sample more than once
       int id1 = rand() % matches_with_depth.size();
- //     int id2 = rand() % matches_with_depth.size();
+      int id2 = rand() % matches_with_depth.size();
 
+      if(id1 > id2) id1 = id2; //use smaller one => increases chance for lower id
       cv::DMatch& m1 = matches_with_depth[id1];
 //      cv::DMatch& m2 = matches_with_depth[id2];
 

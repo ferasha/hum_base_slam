@@ -5,6 +5,7 @@
 #--------------------------------------------------------------------------------------------
 
 # Camera calibration and distortion parameters (OpenCV) 
+
 Camera.fx: 520.908620
 Camera.fy: 521.007327
 Camera.cx: 325.141442
@@ -36,6 +37,7 @@ DepthMapFactor: 5208.0
 
 useORB: 0
 
+#nImages: 2745
 nImages: -1
 
 max_inlier_error: 0.09
@@ -91,4 +93,4 @@ Viewer.ViewpointX: 0
 Viewer.ViewpointY: -0.7
 Viewer.ViewpointZ: -1.8
 Viewer.ViewpointF: 500
-
+Viewer.Resolution: 3

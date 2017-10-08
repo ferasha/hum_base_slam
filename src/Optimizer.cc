@@ -581,6 +581,8 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
 //   std::cout<<"nInitialCorrespondences "<<nInitialCorrespondences<<" vpEdgesMono.size() "<<vpEdgesMono.size()<<" vpEdgesStereo.size() "<<vpEdgesStereo.size()<<std::endl;
 
+    std::cout<<"nInitialCorrespondences "<<nInitialCorrespondences<<std::endl;
+
     if(nInitialCorrespondences<3)
         return 0;
 

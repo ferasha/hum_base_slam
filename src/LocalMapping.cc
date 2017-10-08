@@ -85,6 +85,8 @@ void LocalMapping::Run()
 }
 
 void LocalMapping::MainProcessing(){
+
+  if (CheckNewKeyFrames()) {
     // BoW conversion and insertion in Map
     ProcessNewKeyFrame();
 
@@ -102,8 +104,8 @@ void LocalMapping::MainProcessing(){
     {
     	mpLastKeyFrame = mpCurrentKeyFrame;
         // Find more matches in neighbor keyframes and fuse point duplications
-    	std::cout<<"SearchInNeighbors"<<std::endl;
-               SearchInNeighbors();
+  //  	std::cout<<"SearchInNeighbors"<<std::endl;
+  //             SearchInNeighbors();
 
         if(mpMap->KeyFramesInMap()>2)
           Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
@@ -114,7 +116,7 @@ void LocalMapping::MainProcessing(){
 
     mbAbortBA = false;
 
-    std::cout<<"LocalMapping "<<mpCurrentKeyFrame->mnFrameId<<std::endl;
+//    std::cout<<"LocalMapping "<<mpCurrentKeyFrame->mnFrameId<<std::endl;
 
   //  if(!CheckNewKeyFrames() && !stopRequested())
     {
@@ -126,9 +128,12 @@ void LocalMapping::MainProcessing(){
 //              KeyFrameCulling();
     }
 
+/*
     mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
     mpLoopCloser->MainLCLoop();
+*/
 
+  }
 }
 
 void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
@@ -716,8 +721,8 @@ void LocalMapping::KeyFrameCulling()
 
         if(nRedundantObservations>0.9*nMPs)
             pKF->SetBadFlag();
-        else
-        	std::cout<<"pKF not bad "<<pKF->mnId<<" ("<<pKF->mnFrameId<<")"<<std::endl;
+//        else
+//        	std::cout<<"pKF not bad "<<pKF->mnId<<" ("<<pKF->mnFrameId<<")"<<std::endl;
     }
 }
 

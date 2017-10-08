@@ -391,7 +391,9 @@ void Tracking::Track()
             else
             {
             	bOK = false;
+            	std::cout<<"Relocalization"<<std::endl;
                 //bOK = Relocalization();
+            	/*
             	for (std::list<Frame>::reverse_iterator it=potentialRansacKFs.rbegin();
             			it!=potentialRansacKFs.rend(); ++it) {
             			 CheckReplacedInLastFrame(*it);
@@ -403,6 +405,7 @@ void Tracking::Track()
                          if (bOK)
                         	 break;
                 	}
+            	*/
 
             }
         }
@@ -565,7 +568,8 @@ void Tracking::Track()
     std::cout<<mCurrentFrame.mnId<<"("<<mCurrentFrame.mpReferenceKF->mnFrameId<<","
     		<<mCurrentFrame.mpReferenceKF->mnId<<") "<<std::endl;
 
-    mpLocalMapper->MainProcessing();
+    if (mState == OK)
+    	mpLocalMapper->MainProcessing();
 
 }
 
@@ -578,6 +582,8 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
 	if (dist_ratio > 1.5)
 		dist_ratio = 0.7;
 */
+//	dist_ratio = 0.7;
+
 	Ransac<Frame> ransac;
 //	Ransac ransac;
 	cv::Mat transf;
@@ -602,6 +608,8 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     nmatchesMap = 0;
 
     mCurrentFrame.mvpMapPoints = vpMapPointMatches;
+
+    float diff_norm = 0;
 
     if(!good_tranf) {
   //  	std::cout<<"not good ransac transf returning"<<std::endl;
@@ -658,6 +666,9 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
 //    bool po_result = Optimizer::PoseOptimization(&mCurrentFrame, 2.0, avg_chi2, true);
     int po_result = Optimizer::PoseOptimization(&mCurrentFrame);
 
+//    std::cout<<"po inliers "<<po_result<<std::endl;;
+
+    int nmatchespo = 0;
     // Discard outliers
      nmatchesMap = 0;
     for(int i =0; i<mCurrentFrame.N; i++)
@@ -673,14 +684,18 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
                 pMP->mbTrackInView = false;
                 pMP->mnLastFrameSeen = mCurrentFrame.mnId;
             }
-            else if(mCurrentFrame.mvpMapPoints[i]->Observations()>0)
+            else {
+            	nmatchespo++;
+            	if(mCurrentFrame.mvpMapPoints[i]->Observations()>0)
                 nmatchesMap++;
+            }
         }
     }
 
     if (nmatchesMap < 10) {
     	std::cout<<"nmatchesMap less than 10: "<<nmatchesMap<<std::endl;
     }
+    std::cout<<"nmatchespo "<<nmatchespo<<" nmatchesMap "<<nmatchesMap<<std::endl;
 
 
     cv::Mat LastTwc = cv::Mat::eye(4,4,CV_32F);
@@ -705,7 +720,7 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     float db = abs(pose1.at<float>(1,3)-pose2.at<float>(1,3));
     float dc = abs(pose1.at<float>(2,3)-pose2.at<float>(2,3));
 
-    float diff_norm = da + db + dc;
+    diff_norm = da + db + dc;
     std::cout<<"current_frame po "<<pose1.at<float>(0,3)<<" "<<pose1.at<float>(1,3)<<" "<<pose1.at<float>(2,3)<<
     		" older_frame po "<<pose2.at<float>(0,3)<<" "<<pose2.at<float>(1,3)<<" "<<pose2.at<float>(2,3)<<
     		" da,db,dc "<<da<<","<<db<<","<<dc<<
@@ -726,11 +741,13 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
         	track_res = false;
         */
 //    	float max_dist = 0.06;
-    	float max_dist = 0.2; //0.15; //0.1;
-    	float max_dist_norm = 0.3; //0.2; //0.15;
+    	float max_dist = 0.2;//1.0; //0.15; //0.1;
+    	float max_dist_norm = 0.3;//; //0.2; //0.15;
     	if ((mCurrentFrame.mnId - olderFrame.mnId) > 1) {
-    		max_dist = 0.15 + 0.05*(mCurrentFrame.mnId - olderFrame.mnId);
-    		max_dist_norm = 0.25 + 0.05*(mCurrentFrame.mnId - olderFrame.mnId);
+//    		max_dist = 0.15 + 0.05*(mCurrentFrame.mnId - olderFrame.mnId);
+//    		max_dist_norm = 0.25 + 0.05*(mCurrentFrame.mnId - olderFrame.mnId);
+    		max_dist = max_dist + 0.05*(mCurrentFrame.mnId - olderFrame.mnId);
+    		max_dist_norm = max_dist_norm + 0.05*(mCurrentFrame.mnId - olderFrame.mnId);
     	}
 
   //  		max_dist = 0.04*(mCurrentFrame.mnId - olderFrame.mnId);
@@ -739,9 +756,13 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
         	track_res = false;
     	else if (da>max_dist || db>max_dist || dc>max_dist || diff_norm >max_dist_norm) {
     		std::cout<<"large indiv trans"<<std::endl;
-    		if (match_perc < 0.7)
+ //   		if (match_perc < 0.7 || po_result < 10)
+        	if (po_result < 20 || dist_ratio >= 0.8)
     			track_res = false;
     	}
+
+    	if (diff_norm > 0.2 && po_result < 10 && dist_ratio >= 0.8)
+    		track_res = false;
 
 /*
         if (L1_norm > 0.2 && mCurrentFrame.mnId - olderFrame.mnId == 1) {
@@ -754,30 +775,31 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     }
 
     std::cout<<"track_res "<<track_res<<std::endl;
-
-//    if (!track_res && matches_size >=4){
-        if (matches_size >=4){
 /*
+    if ((!track_res || diff_norm > 0.2) && matches_size >=4){
+//        if (matches_size >=4){
+
     	std::vector<cv::DMatch> matches, inliers_corr;
     	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
     		matches.push_back(it->second);
     		if (!mCurrentFrame.mvbOutlier[it->first])
     			inliers_corr.push_back(it->second);
     	}
-*/
-/*
+
+
 		 cv::Mat initial_matches_img;
 		 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
 				 matches, initial_matches_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
 		 cv::imshow("intial_matches", initial_matches_img);
-*/
-//		 cv::Mat inliers_corr_img;
-//		 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
-//				 inliers_corr, inliers_corr_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
-//		 cv::imshow("inlier correspondences", inliers_corr_img);
 
-//		 cv::waitKey(0);
+		 cv::Mat inliers_corr_img;
+		 drawMatches(mCurrentFrame.mImRGB, mCurrentFrame.mvKeys,olderFrame.mImRGB, olderFrame.mvKeys,
+				 inliers_corr, inliers_corr_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
+		 cv::imshow("inlier correspondences", inliers_corr_img);
+
+		 cv::waitKey(0);
     }
+   */
 /*
     if (!track_res && !try_again) {
     	try_again = true;
@@ -894,7 +916,7 @@ void Tracking::UpdateFrame(Frame& frame)
             nPoints++;
         }
 
-        if(vDepthIdx[j].first>mThDepth && nPoints>100)
+        if(vDepthIdx[j].first>mThDepth && nPoints>1000)
             break;
     }
 }
@@ -1411,6 +1433,9 @@ bool Tracking::TrackLocalMap()
 
     SearchLocalPoints();
 
+
+    cv::Mat pose_po = mCurrentFrame.mTcw.clone();
+
     // Optimize Pose
     Optimizer::PoseOptimization(&mCurrentFrame);
     mnMatchesInliers = 0;
@@ -1437,6 +1462,8 @@ bool Tracking::TrackLocalMap()
         }
     }
 
+//    return true;
+
     cv::Mat pose1 = mCurrentFrame.mTcw;
     cv::Mat pose2 = mLastFrame.mTcw;
 
@@ -1455,9 +1482,25 @@ bool Tracking::TrackLocalMap()
 
     if (da>max_dist || db>max_dist || dc>max_dist || diff_norm >max_dist_norm) {
     	std::cout<<"large tracklocalmap indiv trans"<<std::endl;
-    	return false;
+ //   	return false;
     }
 
+
+    da = abs(pose1.at<float>(0,3)-pose_po.at<float>(0,3));
+    db = abs(pose1.at<float>(1,3)-pose_po.at<float>(1,3));
+    dc = abs(pose1.at<float>(2,3)-pose_po.at<float>(2,3));
+
+    diff_norm = da + db + dc;
+    std::cout<<"dap,dbp,dcp "<<da<<","<<db<<","<<dc<<
+				 " diff norm p "<<diff_norm<<" diff norm p larger than 0.2 "<<(diff_norm>0.2 || diff_norm==0) <<std::endl;
+
+    max_dist = 0.2; //0.15; //0.1;
+    max_dist_norm = 0.2; //0.2; //0.15;
+
+    if (da>max_dist || db>max_dist || dc>max_dist || diff_norm >max_dist_norm) {
+    	std::cout<<"large tracklocalmap diff_p"<<std::endl;
+  //  	return false;
+    }
 
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently

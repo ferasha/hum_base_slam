@@ -21,6 +21,7 @@
 #include "Frame.h"
 #include "Converter.h"
 #include "ORBmatcher.h"
+#include "openfabmap2/new_desc.h"
 #include <thread>
 
 namespace ORB_SLAM2
@@ -49,7 +50,7 @@ Frame::Frame(const Frame &frame)
      mvScaleFactors(frame.mvScaleFactors), mvInvScaleFactors(frame.mvInvScaleFactors),
      mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2),
      mTRelative(frame.mTRelative.clone())
-//   ,mImRGB(frame.mImRGB.clone())
+   ,mImRGB(frame.mImRGB.clone())
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++)
@@ -151,6 +152,9 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     // ORB extraction
 //    ExtractORB(0,imGray);
 
+	mImRGB = static_cast<cv::Ptr<NewDesc> >(extractor_)->currentFrame.color_img.clone();
+
+
     cv::Mat temp;
     (*mpORBextractorLeft)(imGray,cv::Mat(),mvKeys,temp);
 //    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" temp.rows "<<temp.rows<<std::endl;
@@ -180,10 +184,10 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 
     cv::Mat temp2;
     extractor_->compute(imGray, mvKeys, temp2);
-    std::cout<<"after extract "<<mvKeys.size()<<std::endl;
+//    std::cout<<"after extract "<<mvKeys.size()<<std::endl;
 
     keepKPvalidDepth(imDepth, temp2);
-    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" mDescriptors.rows "<<mDescriptors.rows<<std::endl;
+//    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" mDescriptors.rows "<<mDescriptors.rows<<std::endl;
 */
     /*
     double min, max;
