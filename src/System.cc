@@ -352,6 +352,8 @@ void System::SaveTrajectoryTUM(const string &filename)
 
     cout<<"mbadsequentialMain "<<mpTracker->mbadsequentialMain<<std::endl;
     cout<<"mbadlocalmap "<<mpTracker->mbadlocalmap<<std::endl;
+    cout<<"detected "<<mpLoopCloser->detected<<std::endl;
+    cout<<"computesim3 "<<mpLoopCloser->computesim3<<std::endl;
 
 }
 

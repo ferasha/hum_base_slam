@@ -34,6 +34,8 @@ unsigned int Ransac<TFrame>::featureMatching(TFrame& last_frame, TFrame& current
 
 	cv::Ptr<cv::DescriptorMatcher> matcher = new cv::BFMatcher(cv::NORM_HAMMING);
 
+	const vector<MapPoint*>& last_frame_mvpMapPoints = last_frame.GetMapPointMatches();
+
 	std::vector<std::vector<cv::DMatch> > v_matches;
 	matcher->knnMatch(current_frame.mDescriptors, last_frame.mDescriptors, v_matches, 2);
 			for (unsigned int i=0; i<v_matches.size(); i++)
@@ -42,7 +44,8 @@ unsigned int Ransac<TFrame>::featureMatching(TFrame& last_frame, TFrame& current
 					if (v_matches[i][0].distance < settings.dist_ratio * v_matches[i][1].distance) {
 	//				double dist_perc = (v_matches[i][1].distance - v_matches[i][0].distance)*1.0/v_matches[i][0].distance;
 	//				if (dist_perc >= 0.2) {
-						matches.push_back(v_matches[i][0]);
+			//         	if(last_frame_mvpMapPoints[v_matches[i][0].trainIdx]->Observations()>0)
+			         		matches.push_back(v_matches[i][0]);
 	//				}
 
 
@@ -780,7 +783,7 @@ Eigen::Matrix4f Ransac<TFrame>::getTransformFromMatches(const std::vector<Eigen:
     	continue;
     }
 
-    weight = 1.0; //1.0/(from(2) * to(2));
+    weight = 1.0/(from(2) * to(2)); //1.0;
 
     tfc.add(from, to, weight);// 1.0/(to(2)*to(2)));//the further, the less weight b/c of quadratic accuracy decay
   }

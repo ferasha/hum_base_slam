@@ -167,7 +167,7 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 			if (!buffer.empty()) {
 				int n_added = location_node_map.size();
 				KeyFrame* buffer_KF = buffer.front();
-				while ((KF->mnFrameId - buffer_KF->mnFrameId) >= 10)   //this ensure that the keyframe in question is not matched to recent frames (the keyframes are moved from the buffer to fabmap descriptor pool after a while)
+				while ((KF->mnFrameId - buffer_KF->mnFrameId) >= 10)   //this ensures that the keyframe in question is not matched to recent frames (the keyframes are moved from the buffer to fabmap descriptor pool after a while)
 				{
 					if (!(buffer_KF->isBad())) {
 						if ((buffer_KF->mnFrameId -last_matched_frame_id) >= 10) {
@@ -308,6 +308,16 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 						break;
 					}
 				}
+			}
+
+			if (vpCandidateKFs.empty()) {
+				KeyFrame* pparentKF = matched_KF->GetParent();
+				while(pparentKF->isBad())
+				{
+					pparentKF = pparentKF->GetParent();
+				}
+				std::cout<<" adding parent KF "<<pparentKF->mnId;
+				vpCandidateKFs.push_back(pparentKF);
 			}
 
 			std::cout<<std::endl;

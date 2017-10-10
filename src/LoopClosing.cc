@@ -43,6 +43,9 @@ LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc, 
 {
     mnCovisibilityConsistencyTh = 3;
     fabmapLC.initFabmap(strSettingPath);
+    detected = 0;
+    computesim3 = 0;
+
 }
 
 void LoopClosing::SetTracker(Tracking *pTracker)
@@ -61,10 +64,12 @@ void LoopClosing::MainLCLoop(){
     {
 		if (DetectLoopFabmap())
 		{
+			detected++;
 		   // Compute similarity transformation [sR|t]
 		   // In the stereo/RGBD case s=1
 		   if(ComputeSim3())
 		   {
+			   computesim3++;
 			   // Perform loop fusion and pose graph optimization
 			   CorrectLoop();
 		   }
@@ -75,9 +80,6 @@ void LoopClosing::MainLCLoop(){
 void LoopClosing::Run()
 {
     mbFinished =false;
-
-    int detected = 0;
-    int computesim3 = 0;
 
     while(1)
     {
@@ -153,6 +155,7 @@ bool LoopClosing::DetectLoopFabmap()
     }
     
     else {
+  /*
     	if ((mpCurrentKF->mnFrameId - vpCandidateKFs[0]->mnFrameId) < 1000 || mpCurrentKF->mnFrameId < 2000){
 //  	if ((mpCurrentKF->mnFrameId - vpCandidateKFs[0]->mnFrameId) < 100){  
           mpKeyFrameDB->add(mpCurrentKF);
@@ -160,8 +163,18 @@ bool LoopClosing::DetectLoopFabmap()
             mpCurrentKF->SetErase();
             return false;
     	}
+   */
     }
     
+    const vector<KeyFrame*> vpConnectedKeyFrames = mpCurrentKF->GetVectorCovisibleKeyFrames();
+    for(size_t i=0; i<vpConnectedKeyFrames.size(); i++)
+    {
+        KeyFrame* pKF = vpConnectedKeyFrames[i];
+        if(pKF->mnId == vpCandidateKFs[0]->mnId) {
+        	std::cout<<"loop KF is one of the covisible KFs"<<std::endl;
+        	return false;
+        }
+    }
 
     mvpEnoughConsistentCandidates = vpCandidateKFs;
     return true;
@@ -453,7 +466,7 @@ bool LoopClosing::ComputeSim3()
 
 			while(nmatches<20 && dist_ratio >= 0.7)
 			{
-				nmatches = RunRansac(imRGBCurrent, imRGBOld, vvpMapPointMatches[i], dist_ratio, pKF, transf);
+				nmatches = 0; //RunRansac(imRGBCurrent, imRGBOld, vvpMapPointMatches[i], dist_ratio, pKF, transf);
 				dist_ratio = dist_ratio - 0.1;
 			}
 			if (nmatches < 20) {
@@ -843,6 +856,25 @@ void LoopClosing::CorrectLoop()
 
             cv::Mat correctedTiw = Converter::toCvSE3(eigR,eigt);
 
+            cv::Mat old_pose = pKFi->GetPose();
+
+            float da = abs(correctedTiw.at<float>(0,3)-old_pose.at<float>(0,3));
+            float db = abs(correctedTiw.at<float>(1,3)-old_pose.at<float>(1,3));
+            float dc = abs(correctedTiw.at<float>(2,3)-old_pose.at<float>(2,3));
+
+            if (da > 0.1 || db > 0.1 || dc > 0.1) {
+            	std::cout<<"correctloop larger than 0.1"<<std::endl;
+            	std::cout<<da<<" "<<db<<" "<<dc<<std::endl;
+
+            	std::cout<<"id "<<pKFi->mnId<<" before correctloop "<<
+                    old_pose.at<float>(0,3)<<" "<<old_pose.at<float>(1,3)<<
+                    		" "<<old_pose.at<float>(2,3)<<std::endl;
+
+            	        std::cout<<"id "<<pKFi->mnId<<" after correctloop "<<
+            	        		correctedTiw.at<float>(0,3)<<" "<<correctedTiw.at<float>(1,3)<<
+            	        		" "<<correctedTiw.at<float>(2,3)<<std::endl;
+            }
+
             pKFi->SetPose(correctedTiw);
 
             // Make sure connections are updated
@@ -912,7 +944,7 @@ void LoopClosing::CorrectLoop()
     mpThreadGBA = new thread(&LoopClosing::RunGlobalBundleAdjustment,this,mpCurrentKF->mnId);
 */
 
-//    RunGlobalBundleAdjustment(mpCurrentKF->mnId);
+ //   RunGlobalBundleAdjustment(mpCurrentKF->mnId);
     // Loop closed. Release Local Mapping.
  //   mpLocalMapper->Release();
 

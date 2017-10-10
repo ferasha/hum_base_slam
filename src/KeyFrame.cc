@@ -328,6 +328,7 @@ void KeyFrame::UpdateConnections()
     int nmax=0;
     KeyFrame* pKFmax=NULL;
     int th = 15;
+//    int th = 1;
 
     vector<pair<int,KeyFrame*> > vPairs;
     vPairs.reserve(KFcounter.size());

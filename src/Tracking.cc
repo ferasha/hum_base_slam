@@ -421,7 +421,7 @@ void Tracking::Track()
         if(!mbOnlyTracking)
         {
             if(bOK) {
-                bOK = TrackLocalMap();
+                bOK = TrackLocalMap(mLastFrame);
                 bOKMap = bOK;
             }
             if(!bOK){
@@ -435,8 +435,13 @@ void Tracking::Track()
                          bOK = TrackLastFrameRansac(*it, nmatchesM, try_again);
                          bOKRansac = bOK;
                          if (bOK) {
-                        	 bOKMap = TrackLocalMap();
+                        	 bOKMap = TrackLocalMap(*it);
                              bOK = bOKMap;
+                      /*       if (!bOK){
+                            	 bOK = TrackLastFrameRansac(*it, nmatchesM, try_again);
+                            	 bOKRansac = bOK;
+                             }
+                      */
                          }
                          if (bOK)
                         	 break;
@@ -460,7 +465,7 @@ void Tracking::Track()
             // a local map and therefore we do not perform TrackLocalMap(). Once the system relocalizes
             // the camera we will use the local map again.
             if(bOK && !mbVO)
-                bOK = TrackLocalMap();
+                bOK = TrackLocalMap(mLastFrame);
         }
 
         if(bOK)
@@ -761,8 +766,18 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     			track_res = false;
     	}
 
-    	if (diff_norm > 0.2 && po_result < 10 && dist_ratio >= 0.8)
+//    	if (diff_norm > 0.2 && po_result < 20 && dist_ratio >= 0.8)
+        if (diff_norm > 0.2 && po_result < 10 && dist_ratio >= 0.8)
     		track_res = false;
+
+        if (nmatchesMap < 10)
+        	track_res = false;
+
+        if (diff_norm > 0.2 && nmatchesMap < 15 && dist_ratio >= 0.8)
+        	track_res = false;
+
+  //  	 	if (po_result < 20 && dist_ratio >= 0.8)
+  //  	 		track_res = false;
 
 /*
         if (L1_norm > 0.2 && mCurrentFrame.mnId - olderFrame.mnId == 1) {
@@ -1424,7 +1439,7 @@ bool Tracking::TrackWithMotionModel()
     return nmatchesMap>=10;
 }
 
-bool Tracking::TrackLocalMap()
+bool Tracking::TrackLocalMap(Frame& olderFrame)
 {
     // We have an estimation of the camera pose and some map points tracked in the frame.
     // We retrieve the local map and try to find matches to points in the local map.
@@ -1433,12 +1448,21 @@ bool Tracking::TrackLocalMap()
 
     SearchLocalPoints();
 
+    cv::Mat pose1 = mCurrentFrame.mTcw;
+    cv::Mat pose2 = olderFrame.mTcw;
+
+    float da = abs(pose1.at<float>(0,3)-pose2.at<float>(0,3));
+    float db = abs(pose1.at<float>(1,3)-pose2.at<float>(1,3));
+    float dc = abs(pose1.at<float>(2,3)-pose2.at<float>(2,3));
+
+    float diff_norm_po = da + db + dc;
 
     cv::Mat pose_po = mCurrentFrame.mTcw.clone();
 
     // Optimize Pose
     Optimizer::PoseOptimization(&mCurrentFrame);
     mnMatchesInliers = 0;
+    int allinliers = 0;
 
     // Update MapPoints Statistics
     for(int i=0; i<mCurrentFrame.N; i++)
@@ -1450,6 +1474,7 @@ bool Tracking::TrackLocalMap()
                 mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
                 if(!mbOnlyTracking)
                 {
+                	allinliers++;
                     if(mCurrentFrame.mvpMapPoints[i]->Observations()>0)
                         mnMatchesInliers++;
                 }
@@ -1462,14 +1487,16 @@ bool Tracking::TrackLocalMap()
         }
     }
 
+	std::cout<<"TrackLocalMap mnMapMatchesInliers "<<mnMatchesInliers<<" allinliers "<<allinliers<<std::endl;
+
 //    return true;
 
-    cv::Mat pose1 = mCurrentFrame.mTcw;
-    cv::Mat pose2 = mLastFrame.mTcw;
+    pose1 = mCurrentFrame.mTcw;
+    pose2 = olderFrame.mTcw;
 
-    float da = abs(pose1.at<float>(0,3)-pose2.at<float>(0,3));
-    float db = abs(pose1.at<float>(1,3)-pose2.at<float>(1,3));
-    float dc = abs(pose1.at<float>(2,3)-pose2.at<float>(2,3));
+    da = abs(pose1.at<float>(0,3)-pose2.at<float>(0,3));
+    db = abs(pose1.at<float>(1,3)-pose2.at<float>(1,3));
+    dc = abs(pose1.at<float>(2,3)-pose2.at<float>(2,3));
 
     float diff_norm = da + db + dc;
     std::cout<<"current_frame po "<<pose1.at<float>(0,3)<<" "<<pose1.at<float>(1,3)<<" "<<pose1.at<float>(2,3)<<
@@ -1485,6 +1512,10 @@ bool Tracking::TrackLocalMap()
  //   	return false;
     }
 
+    if (diff_norm > diff_norm_po && diff_norm - diff_norm_po > 0.01){
+    	std::cout<<"larger than diff_norm_po "<<std::endl;
+//    	return false;
+    }
 
     da = abs(pose1.at<float>(0,3)-pose_po.at<float>(0,3));
     db = abs(pose1.at<float>(1,3)-pose_po.at<float>(1,3));
@@ -1506,14 +1537,14 @@ bool Tracking::TrackLocalMap()
     // More restrictive if there was a relocalization recently
 //    if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50) {
     if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<20) {
-    	std::cout<<"TrackLocalMap mnMatchesInliers "<<mnMatchesInliers<<std::endl;
-       	std::cout<<"mnLastRelocFrameId "<<mnLastRelocFrameId<<" mMaxFrames "<<mMaxFrames<<std::endl;
+ //   	std::cout<<"TrackLocalMap mnMatchesInliers "<<mnMatchesInliers<<std::endl;
+ //      	std::cout<<"mnLastRelocFrameId "<<mnLastRelocFrameId<<" mMaxFrames "<<mMaxFrames<<std::endl;
  //   	return false;
     }
 
 //    if(mnMatchesInliers<30) {
     if(mnMatchesInliers<10) {
-    	std::cout<<"TrackLocalMap mnMatchesInliers "<<mnMatchesInliers<<std::endl;
+//    	std::cout<<"TrackLocalMap mnMatchesInliers "<<mnMatchesInliers<<std::endl;
   //  	return false;
     }
     else

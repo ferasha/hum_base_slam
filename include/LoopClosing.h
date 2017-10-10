@@ -82,6 +82,9 @@ public:
 
     bool isFinished();
 
+    int detected;
+    int computesim3;
+
 protected:
 
     bool CheckNewKeyFrames();
