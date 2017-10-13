@@ -290,7 +290,16 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
     		extractor_, mbORB, mask, detector_);
 
     Track();
+/*
+    mCurrentFrame.SetPose(cv::Mat::eye(4,4,CV_32F));
 
+    if (mCurrentFrame.mnId == 0)
+    	StereoInitialization();
+    else
+    	CreateNewKeyFrame();
+
+    mpLocalMapper->MainProcessing();
+*/
     return mCurrentFrame.mTcw.clone();
 }
 

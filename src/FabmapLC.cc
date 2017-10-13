@@ -154,6 +154,7 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 	bool only_new_places_ = true;
 	bool firstFrame_ = (KF->mnId > 0) ? false:true;
 	int match_node_id = -1;
+	double stamp = 0;
 
 	KFmap[KF->mnId] = KF;
 
@@ -213,6 +214,7 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 					//	if (bestMatch.imgIdx < matches.size()-2) {
 							loop_closure = true;
 							match_node_id = location_node_map[bestMatch.imgIdx];
+							stamp = KFmap[match_node_id]->mTimeStamp;
 					//	}
 					}
 					else {
@@ -241,6 +243,12 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 												KF->mnFrameId<<"->"<<last_matched_frame_id);
 */
 
+					std::cout<<fixed<<KF->mTimeStamp<<" KF_Id "<<KF->mnId<<
+						       " toLocation " << bestMatch.imgIdx << " frame "<<match_node_id <<
+						       " stamp "<<stamp<<
+							  " Match "<< bestMatch.match <<
+							  " loop_closure? "<<loop_closure<<std::endl;
+	  /*
 				ROS_INFO_STREAM("image_number "<< KF->mnFrameId<<" KF_Id "<<KF->mnId<<
 					       " toLocation " << bestMatch.imgIdx << " (KF id "<<match_node_id<<")" <<
 						  " Match "<< bestMatch.match <<
@@ -248,7 +256,7 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 						  " ("<< good_matches / ((all_appearance_matches==0)? 1:all_appearance_matches) << ")" <<
 						  " loop_closure? "<<loop_closure
 				);
-
+*/
 /*
 				for (int i=matches.size()-1; i>0, i > matches.size()-11; i--){
 					bool l = false;

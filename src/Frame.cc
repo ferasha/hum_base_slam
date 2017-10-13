@@ -163,17 +163,17 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 
 /*
     detector_->detect( imGray, mvKeys, mdepthMask);
-    std::cout<<"after detect mvKeys.size() "<<mvKeys.size()<<std::endl;
+//    std::cout<<"after detect mvKeys.size() "<<mvKeys.size()<<std::endl;
 
     keepKPvalidDepth(imDepth);
-	std::cout<<"after removing no depth "<<mvKeys.size()<<std::endl;
+//	std::cout<<"after removing no depth "<<mvKeys.size()<<std::endl;
 
     cv::KeyPointsFilter::runByImageBorder( mvKeys, imGray.size(), 48/2 + 4 );
-    std::cout<<"after runByImageBorder "<<mvKeys.size()<<std::endl;
+//    std::cout<<"after runByImageBorder "<<mvKeys.size()<<std::endl;
 
 //    std::nth_element(mvKeys.begin(), mvKeys.begin()+600, mvKeys.end(), KeypointResponseGreater());
     extractor_->compute(imGray, mvKeys, mDescriptors);
-    std::cout<<"after extract "<<mvKeys.size()<<std::endl;
+//    std::cout<<"after extract "<<mvKeys.size()<<std::endl;
 */
 
 //    detector_->detect( imGray, mvKeys);

@@ -63,8 +63,10 @@ void LoopClosing::MainLCLoop(){
     if(CheckNewKeyFrames())
     {
 		if (DetectLoopFabmap())
-		{
+//		if (DetectLoop())
+    	{
 			detected++;
+//			return;
 		   // Compute similarity transformation [sR|t]
 		   // In the stereo/RGBD case s=1
 		   if(ComputeSim3())
@@ -217,6 +219,8 @@ bool LoopClosing::DetectLoop()
         if(score<minScore)
             minScore = score;
     }
+
+    std::cout<<"min score "<<minScore<<std::endl;
 
     // Query the database imposing the minimum score
     vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectLoopCandidates(mpCurrentKF, minScore);
@@ -466,7 +470,9 @@ bool LoopClosing::ComputeSim3()
 
 			while(nmatches<20 && dist_ratio >= 0.7)
 			{
-				nmatches = 0; //RunRansac(imRGBCurrent, imRGBOld, vvpMapPointMatches[i], dist_ratio, pKF, transf);
+//			    vector<MapPoint*> tempPointMatches;
+//				nmatches = RunRansac(imRGBCurrent, imRGBOld, tempPointMatches, dist_ratio, pKF, transf);
+				nmatches = RunRansac(imRGBCurrent, imRGBOld, vvpMapPointMatches[i], dist_ratio, pKF, transf);
 				dist_ratio = dist_ratio - 0.1;
 			}
 			if (nmatches < 20) {
