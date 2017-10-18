@@ -65,6 +65,7 @@ src/Viewer.cc
 src/aorb.cc
 src/feature_adjuster.cc
 src/FabmapLC.cc
+#src/Ransac.cc
 )
 
 target_link_libraries(${PROJECT_NAME}

@@ -40,7 +40,8 @@ namespace ORB_SLAM2
 class Settings
 {
 public:
-	Settings(): ransac_iterations(5), refine_iterations(10), min_inliers_threshold(100), max_inlier_error(0.03), dist_ratio(0.7)
+	Settings(): ransac_iterations(5), refine_iterations(10), min_inliers_threshold(100), max_inlier_error(0.03),
+	dist_ratio(0.7), only_map(false)
 {};
 
 	int ransac_iterations;
@@ -48,6 +49,7 @@ public:
 	int min_inliers_threshold;
 	double max_inlier_error;
 	double dist_ratio;
+	bool only_map;
 };
 
 template<class TFrame>
@@ -61,6 +63,7 @@ public:
   Settings settings;
   std::vector<cv::DMatch> initial_matches;
   bool second_time_;
+	std::vector<std::vector<cv::DMatch> > BF_matches;
 
   bool getTransformation(TFrame& last_frame, TFrame& current_frame, cv::Mat& transformation,
 //  bool getTransformation(Frame& last_frame, Frame& current_frame, cv::Mat& transformation,

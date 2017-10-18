@@ -215,6 +215,39 @@ std::vector<KeyFrame*> FabmapLC::checkForLoopClosure(KeyFrame* KF)
 							loop_closure = true;
 							match_node_id = location_node_map[bestMatch.imgIdx];
 							stamp = KFmap[match_node_id]->mTimeStamp;
+					/*
+						if (KF->mnFrameId - KFmap[match_node_id]->mnFrameId > 50) {
+						//nao_motion_capture_2/experiment8
+						//rgbd_dataset_freiburg2_pioneer_360
+					    	std::stringstream path;
+					    	path<<fixed<<"/media/rasha/Seagate Backup Plus Drive/nao_motion_capture_2/experiment4/rgb/"<<
+					    	    		setprecision(6)<<KF->mTimeStamp<<".png";
+					    	std::stringstream pathOld;
+					    	pathOld<<fixed<<"/media/rasha/Seagate Backup Plus Drive/nao_motion_capture_2/experiment4/rgb/"<<
+					    	    		setprecision(6)<<KFmap[match_node_id]->mTimeStamp<<".png";
+
+					    	cv::Mat imRGBCurrent = cv::imread(path.str(),CV_LOAD_IMAGE_COLOR);
+					        cv::Mat imRGBOld = cv::imread(pathOld.str(),CV_LOAD_IMAGE_COLOR);
+
+					    	std::stringstream name1;
+					    	name1<<fixed<<KF->mnId<<" "<<setprecision(6)<<KF->mTimeStamp;
+
+					    	std::stringstream name2;
+					    	name2<<fixed<<match_node_id<<" "<<setprecision(6)<<KFmap[match_node_id]->mTimeStamp;
+
+					    	cv::namedWindow(name2.str());
+
+					    	cv::namedWindow(name1.str());
+					    	cv::moveWindow(name1.str(), 1000,0);
+
+					    cv::imshow(name1.str(), imRGBCurrent);
+					    cv::imshow(name2.str(), imRGBOld);
+
+						 	 cv::waitKey(0);
+
+							    cv::destroyAllWindows();
+							}
+					 */
 					//	}
 					}
 					else {

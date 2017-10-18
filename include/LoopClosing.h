@@ -97,6 +97,8 @@ protected:
 
     bool ComputeSim3();
 
+    bool ComputeSim3_old();
+
     void SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap);
 
     void CorrectLoop();

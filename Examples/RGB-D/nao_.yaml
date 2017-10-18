@@ -68,9 +68,9 @@ ransac_iterations: 10
 
 #big_500_new
 #new_ORB_64
-vocab: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/new_ORB_64/vocab.yml"
-clTree: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/new_ORB_64/clTree.yml"
-trainbows: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/new_ORB_64/trainbows.yml"
+vocab: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/orb_360/vocab.yml"
+clTree: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/orb_360/clTree.yml"
+trainbows: "/home/rasha/catkin_ws/src/openfabmap2/codebooks/orb_360/trainbows.yml"
 FabMapVersion: "FABMAP2"
 NewPlaceMethod: "Sampled"
 BayesMethod: "ChowLiu"

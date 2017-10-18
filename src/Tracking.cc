@@ -143,6 +143,7 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     if (mbORB)
     	extractor_ = createDescriptorExtractor("ORB");
     else
+//    	extractor_ = new cv::SURF();
     	extractor_ = new NewDesc();
 
     mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
@@ -587,7 +588,8 @@ void Tracking::Track()
 
 }
 
-bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& try_again, bool all_matches, double dist_ratio)
+bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& try_again, bool all_matches,
+		double dist_ratio, bool only_mappoints)
 {
 //	std::cout<<"TrackLastFrameRansac "<<std::endl;
 
@@ -597,6 +599,10 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
 		dist_ratio = 0.7;
 */
 //	dist_ratio = 0.7;
+
+	only_mappoints = false;
+
+	std::cout<<"only_mappoints "<<only_mappoints<<" dist_ratio "<<dist_ratio<<std::endl;
 
 	Ransac<Frame> ransac;
 //	Ransac ransac;
@@ -612,8 +618,21 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     ransac.settings.max_inlier_error = max_inlier_error;
     ransac.settings.min_inliers_threshold = min_inliers_threshold;
     ransac.settings.dist_ratio = dist_ratio;
+    ransac.settings.only_map = only_mappoints;
 
     mCurrentFrame.mnInliers = 0;
+
+    int olderframe_mappoints = olderFrame.N;
+    for (int i=0; i<olderFrame.N; i++){
+        MapPoint* pMP = olderFrame.mvpMapPoints[i];
+        if(!pMP)
+        	olderframe_mappoints--;
+        else if(pMP->Observations()<1 || pMP->isBad())
+        {
+        	olderframe_mappoints--;
+        }
+    }
+    std::cout<<"olderframe_mappoints "<<olderframe_mappoints<<std::endl;
 
     std::map<int, cv::DMatch> query_vec;
     bool good_tranf = ransac.getTransformation(olderFrame, mCurrentFrame, transf,
@@ -653,9 +672,10 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
 
 	 cv::waitKey(0);
 */
-    if (matches_size < 4)
+    std::cout<<"matches_size "<<matches_size<<std::endl;
+    if (matches_size < 100)
     {
-    	std::cout<<"matches fewer than 4"<<std::endl;
+    	std::cout<<"matches fewer than 100"<<std::endl;
     	/*
     	std::vector<cv::DMatch> matches;
     	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
@@ -771,19 +791,34 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     	else if (da>max_dist || db>max_dist || dc>max_dist || diff_norm >max_dist_norm) {
     		std::cout<<"large indiv trans"<<std::endl;
  //   		if (match_perc < 0.7 || po_result < 10)
-        	if (po_result < 20 || dist_ratio >= 0.8)
-    			track_res = false;
+//        	if (po_result < 20 || dist_ratio >= 0.8)
+ //   			track_res = false;
     	}
 
 //    	if (diff_norm > 0.2 && po_result < 20 && dist_ratio >= 0.8)
-        if (diff_norm > 0.2 && po_result < 10 && dist_ratio >= 0.8)
-    		track_res = false;
+//        if (diff_norm > 0.2 && po_result < 10 && dist_ratio >= 0.8)
+//    		track_res = false;
 
+//        if (diff_norm > 0.2 && dist_ratio >= 0.8)
+//    		track_res = false;
+
+//good 369
+//        if ((nmatchesMap < 5 && po_result < 20) || nmatchesMap == 0)
+//        	track_res = false;
+
+    	/*
         if (nmatchesMap < 10)
-        	track_res = false;
+        	if (only_mappoints)
+        		track_res = false;
+        	else if (po_result < 20)
+        		track_res = false;
+*/
 
-        if (diff_norm > 0.2 && nmatchesMap < 15 && dist_ratio >= 0.8)
-        	track_res = false;
+    	 if (nmatchesMap < 10)
+    		 std::cout<<"nmatchesMap less than 10"<<std::endl;
+
+  //      if (diff_norm > 0.2 && nmatchesMap < 15 && dist_ratio >= 0.8)
+  //      	track_res = false;
 
   //  	 	if (po_result < 20 && dist_ratio >= 0.8)
   //  	 		track_res = false;
@@ -823,15 +858,44 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
 
 		 cv::waitKey(0);
     }
-   */
+*/
 /*
     if (!track_res && !try_again) {
     	try_again = true;
     	track_res = TrackLastFrameRansac(olderFrame, nmatchesMap, try_again);
     }
 */
+/*
+    if (!track_res && dist_ratio >= 0.8){
+    	if (only_mappoints) {
+    		only_mappoints = false;
+    	}
 
+    	if (dist_ratio == 2.0)
+    		dist_ratio = 1.0;
+    	else
+    		dist_ratio = dist_ratio - 0.1;
 
+    	try_again = true;
+    	track_res = TrackLastFrameRansac(olderFrame, nmatchesMap, try_again, false, dist_ratio, only_mappoints);
+    }
+*/
+
+    if (!track_res && dist_ratio < 2.0){
+    	if (only_mappoints) {
+    		only_mappoints = false;
+    	}
+
+    	if (dist_ratio == 1.0)
+    		dist_ratio = 2.0;
+    	else
+    		dist_ratio = dist_ratio + 0.1;
+
+    	try_again = true;
+    	track_res = TrackLastFrameRansac(olderFrame, nmatchesMap, try_again, false, dist_ratio, only_mappoints);
+    }
+
+/*
     if (!track_res && dist_ratio >= 0.8){
     	if (dist_ratio == 2.0)
     		dist_ratio = 1.0;
@@ -841,7 +905,7 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     	try_again = true;
     	track_res = TrackLastFrameRansac(olderFrame, nmatchesMap, try_again, false, dist_ratio);
     }
-
+*/
  /*
     if (!track_res && dist_ratio < 1.1){
 		dist_ratio = dist_ratio + 0.1;
@@ -943,6 +1007,9 @@ void Tracking::UpdateFrame(Frame& frame)
         if(vDepthIdx[j].first>mThDepth && nPoints>1000)
             break;
     }
+
+    std::cout<<"nPoints "<<nPoints<<std::endl;
+
 }
 
 bool Tracking::TrackNoMapping(){
@@ -1455,6 +1522,8 @@ bool Tracking::TrackLocalMap(Frame& olderFrame)
 
     UpdateLocalMap();
 
+ //   return true;
+
     SearchLocalPoints();
 
     cv::Mat pose1 = mCurrentFrame.mTcw;
@@ -1781,10 +1850,10 @@ void Tracking::SearchLocalPoints()
 
     if(nToMatch>0)
     {
-        ORBmatcher matcher(0.8);
+        ORBmatcher matcher(0.7);
         int th = 1;
         if(mSensor==System::RGBD)
-            th=3;
+            th=5;
         // If the camera has been relocalised recently, perform a coarser search
         if(mCurrentFrame.mnId<mnLastRelocFrameId+2)
             th=5;

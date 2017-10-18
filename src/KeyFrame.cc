@@ -329,6 +329,8 @@ void KeyFrame::UpdateConnections()
     KeyFrame* pKFmax=NULL;
     int th = 15;
 //    int th = 1;
+    unsigned int ID = 0;
+    KeyFrame* pKFprev=NULL;
 
     vector<pair<int,KeyFrame*> > vPairs;
     vPairs.reserve(KFcounter.size());
@@ -343,6 +345,10 @@ void KeyFrame::UpdateConnections()
         {
             vPairs.push_back(make_pair(mit->second,mit->first));
             (mit->first)->AddConnection(this,mit->second);
+        }
+        if (mit->first->mnId >= ID) {
+        	ID = mit->first->mnId;
+        	pKFprev = mit->first;
         }
     }
 
@@ -371,7 +377,7 @@ void KeyFrame::UpdateConnections()
 
         if(mbFirstConnection && mnId!=0)
         {
-            mpParent = mvpOrderedConnectedKeyFrames.front();
+            mpParent = pKFprev; //mvpOrderedConnectedKeyFrames.front();
             mpParent->AddChild(this);
             mbFirstConnection = false;
         }

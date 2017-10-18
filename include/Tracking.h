@@ -144,7 +144,8 @@ protected:
     bool TrackReferenceKeyFrame();
     void UpdateLastFrame();
     bool TrackWithMotionModel();
-    bool TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& try_again, bool all_matches = false, double dist_ratio=2.0);
+    bool TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& try_again, bool all_matches = false,
+    		double dist_ratio=0.7, bool only_mappoints=true);
 
     bool Relocalization();
 

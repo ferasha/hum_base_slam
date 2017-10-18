@@ -130,10 +130,10 @@ void LocalMapping::MainProcessing(){
 //              KeyFrameCulling();
     }
 
-/*
+
     mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
     mpLoopCloser->MainLCLoop();
-*/
+
 
   }
 }

@@ -36,16 +36,25 @@ unsigned int Ransac<TFrame>::featureMatching(TFrame& last_frame, TFrame& current
 
 	const vector<MapPoint*>& last_frame_mvpMapPoints = last_frame.GetMapPointMatches();
 
-	std::vector<std::vector<cv::DMatch> > v_matches;
-	matcher->knnMatch(current_frame.mDescriptors, last_frame.mDescriptors, v_matches, 2);
-			for (unsigned int i=0; i<v_matches.size(); i++)
+	BF_matches.clear();
+
+	matcher->knnMatch(current_frame.mDescriptors, last_frame.mDescriptors, BF_matches, 2);
+			for (unsigned int i=0; i<BF_matches.size(); i++)
 			{
-				if (v_matches[i].size() > 1) {
-					if (v_matches[i][0].distance < settings.dist_ratio * v_matches[i][1].distance) {
+				if (BF_matches[i].size() > 1) {
+					if (BF_matches[i][0].distance < settings.dist_ratio * BF_matches[i][1].distance) {
 	//				double dist_perc = (v_matches[i][1].distance - v_matches[i][0].distance)*1.0/v_matches[i][0].distance;
 	//				if (dist_perc >= 0.2) {
 			//         	if(last_frame_mvpMapPoints[v_matches[i][0].trainIdx]->Observations()>0)
-			         		matches.push_back(v_matches[i][0]);
+						if (settings.only_map) {
+						     MapPoint* pMP = last_frame_mvpMapPoints[BF_matches[i][0].trainIdx];
+						     if (!pMP)
+								continue;
+						     else if(pMP->Observations()<1 || pMP->isBad())
+						    	 continue;
+						}
+
+			         		matches.push_back(BF_matches[i][0]);
 	//				}
 
 
@@ -96,10 +105,10 @@ unsigned int Ransac<TFrame>::featureMatching(TFrame& last_frame, TFrame& current
 	if (false && try_again && matches.size() < 10) {
 
 		std::cout<<"adding additional matches "<<std::endl;
-		for (unsigned int i=0; i<v_matches.size(); i++)
+		for (unsigned int i=0; i<BF_matches.size(); i++)
 		{
-				if (v_matches[i][0].distance < 0.8 * v_matches[i][1].distance && v_matches[i][0].distance >= 0.7 * v_matches[i][1].distance) {
-					matches.push_back(v_matches[i][0]);
+				if (BF_matches[i][0].distance < 0.8 * BF_matches[i][1].distance && BF_matches[i][0].distance >= 0.7 * BF_matches[i][1].distance) {
+					matches.push_back(BF_matches[i][0]);
 
 //					cv::DMatch m1 = v_matches[i][0];
 //					cv::DMatch m2 = v_matches[i][1];
@@ -352,6 +361,7 @@ bool Ransac<TFrame>::getTransformation(TFrame& last_frame, TFrame& current_frame
 	Eigen::Matrix4f transf;
 	float rmse;
 	std::vector < cv::DMatch > matches;
+	std::vector < cv::DMatch > matches_old;
 
 	vpMapPointMatches = vector<MapPoint*>(current_frame.N,
 			static_cast<MapPoint*>(NULL));
@@ -369,7 +379,15 @@ bool Ransac<TFrame>::getTransformation(TFrame& last_frame, TFrame& current_frame
 		current_3d_points.resize(current_frame.mvKeys.size());
 		for (unsigned int i = 0; i < initial_matches.size(); i++) {
 			cv::DMatch& m = initial_matches[i];
-
+/*
+			if (settings.only_map) {
+			     MapPoint* pMP = last_frame_mvpMapPoints[m.trainIdx];
+			     if (!pMP)
+					continue;
+			     else if(pMP->Observations()<1)
+			    	 continue;
+			}
+*/
 			cv::Mat l_point = last_frame.UnprojectStereo(m.trainIdx, false);
 			last_3d_points[m.trainIdx] = Eigen::Vector4f(l_point.at<float>(0),
 					l_point.at<float>(1), l_point.at<float>(2), 1.0);
@@ -386,6 +404,55 @@ bool Ransac<TFrame>::getTransformation(TFrame& last_frame, TFrame& current_frame
 			found_transformation = runRansac(last_3d_points, current_3d_points,
 				initial_matches, transf, rmse, matches);
 		}
+
+		std::cout<<"found_transformation "<<found_transformation<<std::endl;
+//		std::cout<<transf<<std::endl;
+
+        std::cout<<"old initial_matches "<<initial_matches.size()<<std::endl;
+        std::cout<<"old matches "<<matches.size()<<std::endl;
+/*
+		settings.dist_ratio = 2.0;
+		featureMatching(last_frame, current_frame, initial_matches, try_again);
+*/
+        initial_matches.clear();
+		for (unsigned int i=0; i<BF_matches.size(); i++)
+		{
+			if (BF_matches[i].size() > 1) {
+				if (BF_matches[i][0].distance < 2.0 * BF_matches[i][1].distance) {
+					initial_matches.push_back(BF_matches[i][0]);
+				}
+			}
+		}
+
+        std::cout<<"new initial_matches "<<initial_matches.size()<<std::endl;
+
+		for (unsigned int i = 0; i < initial_matches.size(); i++) {
+			cv::DMatch& m = initial_matches[i];
+/*
+			if (settings.only_map) {
+			     MapPoint* pMP = last_frame_mvpMapPoints[m.trainIdx];
+			     if (!pMP)
+					continue;
+			     else if(pMP->Observations()<1)
+			    	 continue;
+			}
+*/
+			cv::Mat l_point = last_frame.UnprojectStereo(m.trainIdx, false);
+			last_3d_points[m.trainIdx] = Eigen::Vector4f(l_point.at<float>(0),
+					l_point.at<float>(1), l_point.at<float>(2), 1.0);
+
+			cv::Mat c_point = current_frame.UnprojectStereo(m.queryIdx, false);
+			current_3d_points[m.queryIdx] = Eigen::Vector4f(
+					c_point.at<float>(0), c_point.at<float>(1),
+					c_point.at<float>(2), 1.0);
+		}
+        double inlier_error;
+			const float max_dist_m = settings.max_inlier_error; //2.0;
+        computeInliersAndError(initial_matches, transf,
+        		current_3d_points, last_3d_points,
+        		matches, inlier_error, max_dist_m*max_dist_m);
+        std::cout<<"new matches "<<matches.size()<<std::endl;
+
 /*
 		if (found_transformation && (abs(transf(0,3)) >= 0.2 || abs(transf(1,3)) >= 0.2
 		    		|| abs(transf(2,3)) >= 0.2))
@@ -821,9 +888,12 @@ void Ransac<TFrame>::computeInliersAndError(const std::vector<cv::DMatch> & all_
     const cv::DMatch& m = all_matches[i];
     const Eigen::Vector4f& origin = origins[m.queryIdx];
     const Eigen::Vector4f& target = earlier[m.trainIdx];
+//    std::cout<<m.queryIdx<<" "<<m.trainIdx<<std::endl;
     if(origin(2) == 0.0 || target(2) == 0.0){ //does NOT trigger on NaN
        continue;
     }
+//    std::cout<<origin<<std::endl;
+//    std::cout<<target<<std::endl;
 
 //   	std::cout<<i<<" "<<m.queryIdx<<" -> "<<m.trainIdx;
 

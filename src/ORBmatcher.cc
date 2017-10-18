@@ -117,7 +117,10 @@ int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoint
         // Apply ratio to second match (only if best and second are in the same scale level)
         if(bestDist<=TH_HIGH)
         {
-            if(bestLevel==bestLevel2 && bestDist>mfNNratio*bestDist2)
+//            if(bestLevel==bestLevel2 && bestDist>mfNNratio*bestDist2)
+//                continue;
+
+            if(bestDist>mfNNratio*bestDist2)
                 continue;
 
             F.mvpMapPoints[bestIdx]=pMP;

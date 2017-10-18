@@ -70,6 +70,7 @@ void LoopClosing::MainLCLoop(){
 		   // Compute similarity transformation [sR|t]
 		   // In the stereo/RGBD case s=1
 		   if(ComputeSim3())
+//			if (ComputeSim3_old())
 		   {
 			   computesim3++;
 			   // Perform loop fusion and pose graph optimization
@@ -240,12 +241,15 @@ bool LoopClosing::DetectLoop()
     // We must detect a consistent loop in several consecutive keyframes to accept it
     mvpEnoughConsistentCandidates.clear();
 
+    std::cout<<fixed<<"DBcurrentKF "<<mpCurrentKF->mnFrameId<<" "<<mpCurrentKF->mTimeStamp;
+
     vector<ConsistentGroup> vCurrentConsistentGroups;
     vector<bool> vbConsistentGroup(mvConsistentGroups.size(),false);
     for(size_t i=0, iend=vpCandidateKFs.size(); i<iend; i++)
     {
         KeyFrame* pCandidateKF = vpCandidateKFs[i];
-        std::cout<<"currentKF "<<mpCurrentKF->mnFrameId<<" candidate "<<pCandidateKF->mnFrameId<<std::endl;
+        std::cout<<fixed<<" candidate "<<pCandidateKF->mnFrameId<<" "<<pCandidateKF->mTimeStamp<<" ";
+
 
         set<KeyFrame*> spCandidateGroup = pCandidateKF->GetConnectedKeyFrames();
         spCandidateGroup.insert(pCandidateKF);
@@ -293,6 +297,8 @@ bool LoopClosing::DetectLoop()
         }
     }
 
+    std::cout<<std::endl;
+
     // Update Covisibility Consistent Groups
     mvConsistentGroups = vCurrentConsistentGroups;
 
@@ -317,12 +323,12 @@ bool LoopClosing::DetectLoop()
 int LoopClosing::RunRansac(cv::Mat& imRGBCurrent, cv::Mat& imRGBOld, vector<MapPoint*>& vpMapPointMatches,
 		double dist_ratio, KeyFrame *pKF, cv::Mat& transf){
 
-	Ransac<KeyFrame> ransac;
 	int nmatches;
 	float match_perc;
-	ransac.settings.dist_ratio = dist_ratio;
-
     std::map<int, cv::DMatch> query_vec;
+
+    Ransac<KeyFrame> ransac;
+    ransac.settings.dist_ratio = dist_ratio;
     bool found_tranf = ransac.getTransformation(*pKF, *mpCurrentKF, transf,
     		vpMapPointMatches, nmatches, true, query_vec, match_perc);
     std::cout<<"found transf "<<found_tranf<<" loop closure matches "<<nmatches<<std::endl;
@@ -344,6 +350,221 @@ int LoopClosing::RunRansac(cv::Mat& imRGBCurrent, cv::Mat& imRGBOld, vector<MapP
     return nmatches;
 
 }
+
+bool LoopClosing::ComputeSim3_old()
+{
+    // For each consistent loop candidate we try to compute a Sim3
+
+    const int nInitialCandidates = mvpEnoughConsistentCandidates.size();
+
+    // We compute first ORB matches for each candidate
+    // If enough matches are found, we setup a Sim3Solver
+    ORBmatcher matcher(0.75,true);
+
+    vector<Sim3Solver*> vpSim3Solvers;
+    vpSim3Solvers.resize(nInitialCandidates);
+
+    vector<vector<MapPoint*> > vvpMapPointMatches;
+    vvpMapPointMatches.resize(nInitialCandidates);
+
+    vector<bool> vbDiscarded;
+    vbDiscarded.resize(nInitialCandidates);
+
+    int nCandidates=0; //candidates with enough matches
+
+    for(int i=0; i<nInitialCandidates; i++)
+    {
+        KeyFrame* pKF = mvpEnoughConsistentCandidates[i];
+
+        // avoid that local mapping erase it while it is being processed in this thread
+        pKF->SetNotErase();
+
+        if(pKF->isBad())
+        {
+            vbDiscarded[i] = true;
+            continue;
+        }
+
+        int nmatches = matcher.SearchByBoW(mpCurrentKF,pKF,vvpMapPointMatches[i]);
+
+        std::cout<<"bownmatches "<<nmatches<<std::endl;
+        if(nmatches<10)
+        {
+            vbDiscarded[i] = true;
+            continue;
+        }
+        else
+        {
+        	if (mpCurrentKF->mnId > 0) {
+/* 
+	       	std::stringstream path;
+        	path<<fixed<<"/media/rasha/Seagate Backup Plus Drive/TUM_dataset/rgbd_dataset_freiburg2_pioneer_360/rgb/"<<
+        	    		setprecision(6)<<mpCurrentKF->mTimeStamp<<".png";
+        	std::stringstream pathOld;
+        	pathOld<<fixed<<"/media/rasha/Seagate Backup Plus Drive/TUM_dataset/rgbd_dataset_freiburg2_pioneer_360/rgb/"<<
+        	    		setprecision(6)<<pKF->mTimeStamp<<".png";
+*/
+	       	std::stringstream path;
+        	path<<fixed<<"/media/rasha/Seagate Backup Plus Drive/nao_motion_capture_2/experiment8/rgb/"<<
+        	    		setprecision(6)<<mpCurrentKF->mTimeStamp<<".png";
+        	std::stringstream pathOld;
+        	pathOld<<fixed<<"/media/rasha/Seagate Backup Plus Drive/nao_motion_capture_2/experiment8/rgb/"<<
+        	    		setprecision(6)<<pKF->mTimeStamp<<".png";
+
+        	cv::Mat imRGBCurrent = cv::imread(path.str(),CV_LOAD_IMAGE_COLOR);
+            cv::Mat imRGBOld = cv::imread(pathOld.str(),CV_LOAD_IMAGE_COLOR);
+
+        	std::stringstream name1;
+        	name1<<fixed<<mpCurrentKF->mnFrameId<<" "<<setprecision(6)<<mpCurrentKF->mTimeStamp;
+
+        	std::stringstream name2;
+        	name2<<fixed<<pKF->mnFrameId<<" "<<setprecision(6)<<pKF->mTimeStamp;
+
+        	cv::namedWindow(name2.str());
+
+        	cv::namedWindow(name1.str());
+        	cv::moveWindow(name1.str(), 1000,0);
+
+        cv::imshow(name1.str(), imRGBCurrent);
+        cv::imshow(name2.str(), imRGBOld);
+
+    	 	 cv::waitKey(0);
+
+    		    cv::destroyAllWindows();
+        	}
+
+                vbDiscarded[i] = true;
+                continue;
+/*
+            Sim3Solver* pSolver = new Sim3Solver(mpCurrentKF,pKF,vvpMapPointMatches[i],mbFixScale);
+            pSolver->SetRansacParameters(0.99,20,300);
+            vpSim3Solvers[i] = pSolver;
+ */
+        }
+
+        nCandidates++;
+    }
+
+    bool bMatch = false;
+
+    // Perform alternatively RANSAC iterations for each candidate
+    // until one is succesful or all fail
+    while(nCandidates>0 && !bMatch)
+    {
+        for(int i=0; i<nInitialCandidates; i++)
+        {
+            if(vbDiscarded[i])
+                continue;
+
+            KeyFrame* pKF = mvpEnoughConsistentCandidates[i];
+
+            // Perform 5 Ransac Iterations
+            vector<bool> vbInliers;
+            int nInliers;
+            bool bNoMore;
+
+            Sim3Solver* pSolver = vpSim3Solvers[i];
+            cv::Mat Scm  = pSolver->iterate(5,bNoMore,vbInliers,nInliers);
+
+            // If Ransac reachs max. iterations discard keyframe
+            if(bNoMore)
+            {
+                vbDiscarded[i]=true;
+                nCandidates--;
+            }
+
+            // If RANSAC returns a Sim3, perform a guided matching and optimize with all correspondences
+            if(!Scm.empty())
+            {
+                vector<MapPoint*> vpMapPointMatches(vvpMapPointMatches[i].size(), static_cast<MapPoint*>(NULL));
+                for(size_t j=0, jend=vbInliers.size(); j<jend; j++)
+                {
+                    if(vbInliers[j])
+                       vpMapPointMatches[j]=vvpMapPointMatches[i][j];
+                }
+
+                cv::Mat R = pSolver->GetEstimatedRotation();
+                cv::Mat t = pSolver->GetEstimatedTranslation();
+                const float s = pSolver->GetEstimatedScale();
+                matcher.SearchBySim3(mpCurrentKF,pKF,vpMapPointMatches,s,R,t,7.5);
+
+                g2o::Sim3 gScm(Converter::toMatrix3d(R),Converter::toVector3d(t),s);
+                const int nInliers = Optimizer::OptimizeSim3(mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
+
+                // If optimization is succesful stop ransacs and continue
+                if(nInliers>=20)
+                {
+                    bMatch = true;
+                    mpMatchedKF = pKF;
+                    g2o::Sim3 gSmw(Converter::toMatrix3d(pKF->GetRotation()),Converter::toVector3d(pKF->GetTranslation()),1.0);
+                    mg2oScw = gScm*gSmw;
+                    mScw = Converter::toCvMat(mg2oScw);
+
+                    mvpCurrentMatchedPoints = vpMapPointMatches;
+                    break;
+                }
+            }
+        }
+    }
+
+    if(!bMatch)
+    {
+        for(int i=0; i<nInitialCandidates; i++)
+             mvpEnoughConsistentCandidates[i]->SetErase();
+        mpCurrentKF->SetErase();
+        return false;
+    }
+
+    // Retrieve MapPoints seen in Loop Keyframe and neighbors
+    vector<KeyFrame*> vpLoopConnectedKFs = mpMatchedKF->GetVectorCovisibleKeyFrames();
+    vpLoopConnectedKFs.push_back(mpMatchedKF);
+    mvpLoopMapPoints.clear();
+    for(vector<KeyFrame*>::iterator vit=vpLoopConnectedKFs.begin(); vit!=vpLoopConnectedKFs.end(); vit++)
+    {
+        KeyFrame* pKF = *vit;
+        vector<MapPoint*> vpMapPoints = pKF->GetMapPointMatches();
+        for(size_t i=0, iend=vpMapPoints.size(); i<iend; i++)
+        {
+            MapPoint* pMP = vpMapPoints[i];
+            if(pMP)
+            {
+                if(!pMP->isBad() && pMP->mnLoopPointForKF!=mpCurrentKF->mnId)
+                {
+                    mvpLoopMapPoints.push_back(pMP);
+                    pMP->mnLoopPointForKF=mpCurrentKF->mnId;
+                }
+            }
+        }
+    }
+
+    // Find more matches projecting with the computed Sim3
+    matcher.SearchByProjection(mpCurrentKF, mScw, mvpLoopMapPoints, mvpCurrentMatchedPoints,10);
+
+    // If enough matches accept Loop
+    int nTotalMatches = 0;
+    for(size_t i=0; i<mvpCurrentMatchedPoints.size(); i++)
+    {
+        if(mvpCurrentMatchedPoints[i])
+            nTotalMatches++;
+    }
+
+    if(nTotalMatches>=40)
+    {
+        for(int i=0; i<nInitialCandidates; i++)
+            if(mvpEnoughConsistentCandidates[i]!=mpMatchedKF)
+                mvpEnoughConsistentCandidates[i]->SetErase();
+        return true;
+    }
+    else
+    {
+        for(int i=0; i<nInitialCandidates; i++)
+            mvpEnoughConsistentCandidates[i]->SetErase();
+        mpCurrentKF->SetErase();
+        return false;
+    }
+
+}
+
 
 bool LoopClosing::ComputeSim3()
 {

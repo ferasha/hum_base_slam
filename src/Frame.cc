@@ -161,10 +161,10 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     keepKPvalidDepth(imDepth, temp);
 //    std::cout<<"mvKeys.size() "<<mvKeys.size()<<" mDescriptors.rows "<<mDescriptors.rows<<std::endl;
 
-/*
-    detector_->detect( imGray, mvKeys, mdepthMask);
+ //   mvKeys.clear();
+ //   detector_->detect( imGray, mvKeys, mdepthMask);
 //    std::cout<<"after detect mvKeys.size() "<<mvKeys.size()<<std::endl;
-
+/*
     keepKPvalidDepth(imDepth);
 //	std::cout<<"after removing no depth "<<mvKeys.size()<<std::endl;
 
