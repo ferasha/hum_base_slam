@@ -243,6 +243,8 @@ bool LoopClosing::DetectLoop()
 
     std::cout<<fixed<<"DBcurrentKF "<<mpCurrentKF->mnFrameId<<" "<<mpCurrentKF->mTimeStamp;
 
+    bool first_time = true;
+
     vector<ConsistentGroup> vCurrentConsistentGroups;
     vector<bool> vbConsistentGroup(mvConsistentGroups.size(),false);
     for(size_t i=0, iend=vpCandidateKFs.size(); i<iend; i++)
@@ -250,6 +252,25 @@ bool LoopClosing::DetectLoop()
         KeyFrame* pCandidateKF = vpCandidateKFs[i];
         std::cout<<fixed<<" candidate "<<pCandidateKF->mnFrameId<<" "<<pCandidateKF->mTimeStamp<<" ";
 
+        std::cout<<std::endl;
+        cv::Mat transf;
+        vector<MapPoint*> vpMapPointMatches;
+        cv::Mat imRGBCurrent;
+        cv::Mat imRGBOld;
+        double dist_ratio = 0.7;
+        int nmatches = 0;
+
+ //       if (mpCurrentKF->mnFrameId > 430) {
+			while(nmatches<20 && dist_ratio < 1.2)
+			{
+				nmatches = RunRansac(imRGBCurrent, imRGBOld, vpMapPointMatches, dist_ratio, pCandidateKF, transf);
+				if (nmatches > 20 && first_time){
+					std::cout<<"lc nmatches larger than 0"<<std::endl;
+					first_time = false;
+				}
+				dist_ratio = dist_ratio + 0.1;
+			}
+  //      }
 
         set<KeyFrame*> spCandidateGroup = pCandidateKF->GetConnectedKeyFrames();
         spCandidateGroup.insert(pCandidateKF);
@@ -297,6 +318,10 @@ bool LoopClosing::DetectLoop()
         }
     }
 
+	if (first_time) {
+		std::cout<<"lc no candidate is good"<<std::endl;
+	}
+
     std::cout<<std::endl;
 
     // Update Covisibility Consistent Groups
@@ -334,19 +359,38 @@ int LoopClosing::RunRansac(cv::Mat& imRGBCurrent, cv::Mat& imRGBOld, vector<MapP
     std::cout<<"found transf "<<found_tranf<<" loop closure matches "<<nmatches<<std::endl;
 
 /*
-	std::vector<cv::DMatch> matches;
-	for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
-		matches.push_back(it->second);
-	}
+    if (nmatches > 0) {
+
+//    	std::cout<<"lc nmatches larger than 0"<<std::endl;
+
+        if (nmatches < 20) {
+
+    	std::vector<cv::DMatch> matches;
+		for (std::map<int, cv::DMatch>::iterator it=query_vec.begin(); it!=query_vec.end(); it++){
+			matches.push_back(it->second);
+		}
+
+		std::stringstream path;
+		path<<fixed<<"/media/rasha/Seagate Backup Plus Drive/nao_motion_capture_2/experiment8/rgb/"<<
+					setprecision(6)<<mpCurrentKF->mTimeStamp<<".png";
+		std::stringstream pathOld;
+		pathOld<<fixed<<"/media/rasha/Seagate Backup Plus Drive/nao_motion_capture_2/experiment8/rgb/"<<
+					setprecision(6)<<pKF->mTimeStamp<<".png";
+
+		imRGBCurrent = cv::imread(path.str(),CV_LOAD_IMAGE_COLOR);
+		imRGBOld = cv::imread(pathOld.str(),CV_LOAD_IMAGE_COLOR);
 
 
-    cv::Mat initial_matches_img;
-    drawMatches(imRGBCurrent, mpCurrentKF->mvKeys, imRGBOld, pKF->mvKeys,
-			 matches, initial_matches_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
-    cv::imshow("initial_matches", initial_matches_img);
+		cv::Mat initial_matches_img;
+		drawMatches(imRGBCurrent, mpCurrentKF->mvKeys, imRGBOld, pKF->mvKeys,
+				 matches, initial_matches_img, cv::Scalar::all(-1), cv::Scalar::all(-1));
+		cv::imshow("initial_matches", initial_matches_img);
 
-	 	 cv::waitKey(0);
+			 cv::waitKey(0);
+        }
+    }
 */
+
     return nmatches;
 
 }
@@ -404,6 +448,7 @@ bool LoopClosing::ComputeSim3_old()
         	pathOld<<fixed<<"/media/rasha/Seagate Backup Plus Drive/TUM_dataset/rgbd_dataset_freiburg2_pioneer_360/rgb/"<<
         	    		setprecision(6)<<pKF->mTimeStamp<<".png";
 */
+/*
 	       	std::stringstream path;
         	path<<fixed<<"/media/rasha/Seagate Backup Plus Drive/nao_motion_capture_2/experiment8/rgb/"<<
         	    		setprecision(6)<<mpCurrentKF->mTimeStamp<<".png";
@@ -425,12 +470,14 @@ bool LoopClosing::ComputeSim3_old()
         	cv::namedWindow(name1.str());
         	cv::moveWindow(name1.str(), 1000,0);
 
-        cv::imshow(name1.str(), imRGBCurrent);
-        cv::imshow(name2.str(), imRGBOld);
+        	cv::imshow(name1.str(), imRGBCurrent);
+        	cv::imshow(name2.str(), imRGBOld);
 
-    	 	 cv::waitKey(0);
+    	 	cv::waitKey(0);
 
-    		    cv::destroyAllWindows();
+    	    cv::destroyAllWindows();
+*/
+
         	}
 
                 vbDiscarded[i] = true;

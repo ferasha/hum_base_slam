@@ -886,7 +886,7 @@ bool Tracking::TrackLastFrameRansac(Frame& olderFrame, int& nmatchesMap, bool& t
     		only_mappoints = false;
     	}
 
-    	if (dist_ratio == 1.0)
+    	if (dist_ratio >= 1.0)
     		dist_ratio = 2.0;
     	else
     		dist_ratio = dist_ratio + 0.1;

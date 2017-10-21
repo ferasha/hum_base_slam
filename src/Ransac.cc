@@ -489,8 +489,8 @@ bool Ransac<TFrame>::getTransformation(TFrame& last_frame, TFrame& current_frame
 		} else {
 //			std::map<int, cv::DMatch> query_vec;
 			std::map<int, cv::DMatch> train_vec;
-			for (unsigned int i = 0; i < initial_matches.size(); i++) {
-				cv::DMatch& m = initial_matches[i];
+			for (unsigned int i = 0; i < matches.size(); i++) {
+				cv::DMatch& m = matches[i];
 				if (query_vec.count(m.queryIdx) > 0) {
 					if (query_vec[m.queryIdx].distance <= m.distance)
 						continue;
